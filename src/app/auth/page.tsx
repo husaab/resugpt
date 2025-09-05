@@ -9,7 +9,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="h-screen flex items-center overflow-hidden">
+    <div className="h-screen flex items-center overflow-hidden pt-16">
       <BackgroundIcons />
       <div 
         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
