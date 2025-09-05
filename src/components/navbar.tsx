@@ -1,7 +1,18 @@
+'use client'
+
 import { ThemeSwitch } from './theme-switch'
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
+import { useUserStore } from '@/store/userStore'
 
 export function Navbar() {
+  const { user, clearUser } = useUserStore()
+
+  const handleSignOut = async () => {
+    clearUser() // Clear Zustand state
+    await signOut() // Clear NextAuth session
+  }
+
   return (
     <nav style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }} className="fixed top-0 left-0 right-0 z-50 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -17,19 +28,47 @@ export function Navbar() {
           <div className="flex items-center space-x-4">
             <ThemeSwitch />
 
-            <Link 
-              href="/"
-              className="cursor-pointer bg-[#005b96] hover:bg-[#004578] text-white px-4 py-2 rounded-md font-medium transition-colors text-center inline-block"
-            >
-              Try Now
-            </Link>
+            {user ? (
+              // Logged in state
+              <>
+                <div className="flex items-center space-x-3">
+                  <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <span className="opacity-75">Credits: </span>
+                    <span className="font-bold">{user.credits}</span>
+                  </div>
+                  
+                  <div className="w-8 h-8 rounded-full bg-[#005b96] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                  </div>
+                  
+                  <button 
+                    onClick={handleSignOut}
+                    className="cursor-pointer border border-[#005b96] text-[#005b96] hover:bg-[#005b96] hover:text-white px-4 py-2 rounded-md font-medium transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Not logged in state
+              <>
+                <Link 
+                  href="/"
+                  className="cursor-pointer bg-[#005b96] hover:bg-[#004578] text-white px-4 py-2 rounded-md font-medium transition-colors text-center inline-block"
+                >
+                  Try Now
+                </Link>
 
-            <Link 
-              href="/auth" 
-              className="cursor-pointer border border-[#005b96] text-[#005b96] hover:bg-[#005b96] hover:text-white px-4 py-2 rounded-md font-medium transition-colors text-center inline-block"
-            >
-              Login
-            </Link>
+                <Link 
+                  href="/auth" 
+                  className="cursor-pointer border border-[#005b96] text-[#005b96] hover:bg-[#005b96] hover:text-white px-4 py-2 rounded-md font-medium transition-colors text-center inline-block"
+                >
+                  Login
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

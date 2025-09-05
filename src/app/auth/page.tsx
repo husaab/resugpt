@@ -1,11 +1,18 @@
 'use client'
 
+import { signIn } from 'next-auth/react'
 import { BackgroundIcons } from '../../components/background-icons'
 
 export default function AuthPage() {
-  const handleGoogleLogin = () => {
-    // TODO: Will use signIn('google') when we add next-auth/react
-    console.log('Google login clicked')
+  const handleGoogleLogin = async () => {
+    try {
+      await signIn('google', {
+        callbackUrl: '/',
+        redirect: true
+      })
+    } catch (error) {
+      console.error('Google sign-in error:', error)
+    }
   }
 
   return (
