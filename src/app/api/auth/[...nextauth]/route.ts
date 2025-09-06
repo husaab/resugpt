@@ -2,7 +2,6 @@ import { NextAuthOptions } from "next-auth"
 import NextAuth from "next-auth"
 import GoogleProvider from 'next-auth/providers/google'
 import { login } from '@/services/authService'
-import { useUserStore } from '@/store/userStore'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!
@@ -19,34 +18,32 @@ const authOption: NextAuthOptions = {
         })
     ],
     callbacks: {
-        async signIn({ user, account, profile }) {
+        async jwt({ token, account, user }) {
             if (account?.provider === 'google') {
                 try {
-                    // Call backend to create/find user
+                    // Fetch user data from backend on first login
                     const response = await login({
                         email: user.email!,
                         name: user.name!,
                         sub: account.providerAccountId
                     })
                     
-                    // Store user data in Zustand (accessible on client-side)
-                    if (typeof window !== 'undefined') {
-                        useUserStore.getState().setUser({
-                            googleId: account.providerAccountId,
-                            email: user.email!,
-                            name: user.name!,
-                            credits: response.data.credits,
-                            subscriptionStatus: response.data.subscriptionStatus as 'free' | 'premium' | 'pro'
-                        })
-                    }
-                    
-                    return true
+                    token.googleId = account.providerAccountId
+                    token.credits = response.data.credits
+                    token.subscriptionStatus = response.data.subscriptionStatus
                 } catch (error) {
-                    console.error('Backend login error:', error)
-                    return false
+                    console.error('JWT callback error:', error)
                 }
             }
-            return true
+            return token
+        },
+        async session({ session, token }) {
+            if (token.googleId) {
+                session.user.googleId = token.googleId as string
+                session.user.credits = token.credits as number
+                session.user.subscriptionStatus = token.subscriptionStatus as string
+            }
+            return session
         },
     },
     secret: process.env.NEXTAUTH_SECRET,

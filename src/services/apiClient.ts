@@ -26,6 +26,7 @@ async function apiClient<T, B = unknown>(
 
     const response = await fetch(`${baseURL}${endpoint}`, config);
     if (!response.ok) {
+        console.log(response)
         const errorBody = await response.json();
         console.log(errorBody)
         

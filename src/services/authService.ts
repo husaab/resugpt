@@ -5,7 +5,7 @@ import { LoginResponse, LoginRequest } from './types/auth';
 // But we can still have backend API calls for user operations
 
 export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  return apiClient<LoginResponse>('/api/auth/login', {
+  return apiClient<LoginResponse>('auth/login', {
     method: 'POST',
     body: credentials,
   });
@@ -13,7 +13,7 @@ export const login = async (credentials: LoginRequest): Promise<LoginResponse> =
 
 // Update user credits (when they use/purchase credits)
 export const updateCredits = async (googleId: string, credits: number) => {
-  return apiClient(`/api/users/${googleId}/credits`, {
+  return apiClient(`users/${googleId}/credits`, {
     method: 'PATCH',
     body: { credits },
   });
@@ -21,7 +21,7 @@ export const updateCredits = async (googleId: string, credits: number) => {
 
 // Update subscription status (when they upgrade/downgrade)
 export const updateSubscription = async (googleId: string, subscriptionStatus: string) => {
-  return apiClient(`/api/users/${googleId}/subscription`, {
+  return apiClient(`users/${googleId}/subscription`, {
     method: 'PATCH', 
     body: { subscriptionStatus },
   });
@@ -29,7 +29,7 @@ export const updateSubscription = async (googleId: string, subscriptionStatus: s
 
 // Generate resume (uses credits)
 export const generateResume = async (googleId: string, resumeData: any) => {
-  return apiClient('/api/resumes/generate', {
+  return apiClient('resumes/generate', {
     method: 'POST',
     body: { googleId, ...resumeData },
   });
@@ -37,7 +37,7 @@ export const generateResume = async (googleId: string, resumeData: any) => {
 
 // Generate cover letter (uses credits) 
 export const generateCoverLetter = async (googleId: string, coverLetterData: any) => {
-  return apiClient('/api/cover-letters/generate', {
+  return apiClient('cover-letters/generate', {
     method: 'POST',
     body: { googleId, ...coverLetterData },
   });

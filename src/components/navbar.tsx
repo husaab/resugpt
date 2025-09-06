@@ -2,15 +2,13 @@
 
 import { ThemeSwitch } from './theme-switch'
 import Link from 'next/link'
-import { signOut } from 'next-auth/react'
-import { useUserStore } from '@/store/userStore'
+import { signOut, useSession } from 'next-auth/react'
 
 export function Navbar() {
-  const { user, clearUser } = useUserStore()
+  const { data: session } = useSession()
 
   const handleSignOut = async () => {
-    clearUser() // Clear Zustand state
-    await signOut() // Clear NextAuth session
+    await signOut()
   }
 
   return (
@@ -28,13 +26,13 @@ export function Navbar() {
           <div className="flex items-center space-x-4">
             <ThemeSwitch />
 
-            {user ? (
+            {session?.user ? (
               // Logged in state
               <>
                 <div className="flex items-center space-x-3">
                   <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
                     <span className="opacity-75">Credits: </span>
-                    <span className="font-bold">{user.credits}</span>
+                    <span className="font-bold">{session.user.credits}</span>
                   </div>
                   
                   <div className="w-8 h-8 rounded-full bg-[#005b96] flex items-center justify-center">

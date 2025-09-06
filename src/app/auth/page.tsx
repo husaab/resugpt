@@ -1,18 +1,33 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
 import { BackgroundIcons } from '../../components/background-icons'
+import { popupCenter } from '../../utils/popupCenter'
+import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+import { useEffect } from 'react'
 
 export default function AuthPage() {
-  const handleGoogleLogin = async () => {
-    try {
-      await signIn('google', {
-        callbackUrl: '/',
-        redirect: true
-      })
-    } catch (error) {
-      console.error('Google sign-in error:', error)
+  const router = useRouter()
+  const { data: session, status } = useSession()
+
+  // Redirect authenticated users to homepage
+  useEffect(() => {
+    if (session?.user) {
+      router.push('/')
     }
+  }, [session, router])
+
+  const handleGoogleLogin = () => {
+    const popup = popupCenter('/google-signin', 'Sign in with Google')
+    
+    // Listen for popup to close
+    const checkClosed = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(checkClosed)
+        // Redirect to main page after popup closes
+        router.push('/')
+      }
+    }, 1000)
   }
 
   return (
