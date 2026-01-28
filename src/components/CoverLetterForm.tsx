@@ -15,6 +15,8 @@ import { useCredits } from '@/contexts/CreditContext'
 import { generateCoverLetter } from '@/services/coverLetterService'
 import { CoverLetterTone } from '@/types/coverLetter'
 import { CreditWarningBanner } from './credits/CreditWarningBanner'
+import { Tooltip } from './ui/Tooltip'
+import { ValidationTooltipContent } from './ui/ValidationTooltipContent'
 
 // Dynamic import for pdfjs to avoid SSR issues
 let pdfjsLib: any = null
@@ -119,6 +121,7 @@ export function CoverLetterForm() {
   }, [authGuard.isAuthenticated, getFormData, setValue, clearFormData])
 
   const jobDescription = watch('jobDescription')
+  const jobTitle = watch('jobTitle')
 
   const handleFileButtonClick = () => {
     fileInputRef.current?.click()
@@ -286,6 +289,21 @@ export function CoverLetterForm() {
       fileInputRef.current.value = ''
     }
   }
+
+  // Get list of missing requirements for tooltip
+  const getMissingRequirements = (): string[] => {
+    const missing: string[] = []
+    if (!isPdfReady) {
+      missing.push('Upload your resume (PDF)')
+    }
+    if (!jobTitle || jobTitle.trim() === '') {
+      missing.push('Enter job title')
+    }
+    return missing
+  }
+
+  const missingRequirements = getMissingRequirements()
+  const showValidationTooltip = missingRequirements.length > 0 && !isSubmitting && !(authGuard.isAuthenticated && !canGenerate)
 
   return (
     <FadeIn delay={0.2}>
@@ -631,51 +649,57 @@ export function CoverLetterForm() {
             )}
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full"
-              disabled={!isPdfReady || isSubmitting || (authGuard.isAuthenticated && !canGenerate)}
-              isLoading={isSubmitting}
+            <Tooltip
+              content={<ValidationTooltipContent missingRequirements={missingRequirements} />}
+              enabled={showValidationTooltip}
+              position="top"
             >
-              {isSubmitting ? (
-                'Generating your cover letter...'
-              ) : authGuard.isAuthenticated && !canGenerate ? (
-                <>
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                  Out of Credits - Upgrade Required
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                  Generate Cover Letter
-                </>
-              )}
-            </Button>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={!isPdfReady || !jobTitle || jobTitle.trim() === '' || isSubmitting || (authGuard.isAuthenticated && !canGenerate)}
+                isLoading={isSubmitting}
+              >
+                {isSubmitting ? (
+                  'Generating your cover letter...'
+                ) : authGuard.isAuthenticated && !canGenerate ? (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                    Out of Credits - Upgrade Required
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                    Generate Cover Letter
+                  </>
+                )}
+              </Button>
+            </Tooltip>
 
             {/* Helper text */}
             <p
