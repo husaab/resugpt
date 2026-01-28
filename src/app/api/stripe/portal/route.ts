@@ -14,6 +14,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 500 }
+      )
+    }
+
     // Find the Stripe customer by email
     const existingCustomers = await stripe.customers.list({
       email: session.user.email,

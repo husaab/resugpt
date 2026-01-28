@@ -20,13 +20,11 @@ export interface PricingTier {
   name: string
   description: string
   monthlyPrice: number
+  annualPrice: number // Explicit annual price
   features: PricingFeature[]
   highlighted?: boolean
   ctaText: string
 }
-
-// Annual discount: 2 months free (pay for 10 months)
-export const ANNUAL_MONTHS = 10
 
 export const PRICING_TIERS: PricingTier[] = [
   {
@@ -34,6 +32,7 @@ export const PRICING_TIERS: PricingTier[] = [
     name: 'Free',
     description: 'Get started with the basics',
     monthlyPrice: 0,
+    annualPrice: 0,
     features: [
       { name: '3 resume credits', included: true },
       { name: '3 cover letter credits', included: true },
@@ -48,8 +47,9 @@ export const PRICING_TIERS: PricingTier[] = [
     name: 'Pro',
     description: 'For serious job seekers',
     monthlyPrice: 4.99,
+    annualPrice: 40,
     features: [
-      { name: '30 resume credits', included: true },
+      { name: '50 resume credits/month', included: true },
       { name: 'Unlimited cover letters', included: true },
       { name: 'Saved resumes on profile', included: true },
       { name: 'Priority support', included: false },
@@ -63,6 +63,7 @@ export const PRICING_TIERS: PricingTier[] = [
     name: 'Premium',
     description: 'Maximum power, no limits',
     monthlyPrice: 13.99,
+    annualPrice: 100,
     features: [
       { name: 'Unlimited resume credits', included: true },
       { name: 'Unlimited cover letters', included: true },
@@ -83,25 +84,20 @@ export function formatPrice(price: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
+    minimumFractionDigits: price % 1 === 0 ? 0 : 2, // No decimals for whole numbers
   }).format(price)
 }
 
-export function getAnnualPrice(monthlyPrice: number): number {
-  return monthlyPrice * ANNUAL_MONTHS
-}
-
-export function getAnnualSavings(monthlyPrice: number): number {
-  // Savings = 2 months worth (12 - 10 = 2)
-  return monthlyPrice * (12 - ANNUAL_MONTHS)
+export function getAnnualSavings(tier: PricingTier): number {
+  // Savings = (monthly * 12) - annual price
+  return (tier.monthlyPrice * 12) - tier.annualPrice
 }
 
 export function getDisplayPrice(tier: PricingTier, billingPeriod: BillingPeriod): string {
   if (tier.monthlyPrice === 0) return 'Free'
 
   if (billingPeriod === 'annual') {
-    const annualTotal = getAnnualPrice(tier.monthlyPrice)
-    return formatPrice(annualTotal)
+    return formatPrice(tier.annualPrice)
   }
 
   return formatPrice(tier.monthlyPrice)

@@ -20,6 +20,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 500 }
+      )
+    }
+
     const body: CheckoutRequestBody = await request.json()
     const { tier, billingPeriod } = body
 
@@ -63,10 +70,11 @@ export async function POST(request: NextRequest) {
     // Get the price ID for this tier and billing period
     const priceId = getPriceId(tier, billingPeriod)
 
-    // Create the checkout session
+    // Create the checkout session with embedded mode
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
+      ui_mode: 'embedded',
       line_items: [
         {
           price: priceId,
@@ -78,8 +86,8 @@ export async function POST(request: NextRequest) {
         tier,
         billingPeriod,
       },
-      success_url: `${process.env.NEXTAUTH_URL}settings?checkout=success`,
-      cancel_url: `${process.env.NEXTAUTH_URL}pricing?checkout=cancelled`,
+      // For embedded mode, use return_url instead of success/cancel URLs
+      return_url: `${process.env.NEXTAUTH_URL}pricing?checkout=complete&session_id={CHECKOUT_SESSION_ID}`,
       subscription_data: {
         metadata: {
           googleId: (session.user as { googleId?: string }).googleId || '',
@@ -88,7 +96,10 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ url: checkoutSession.url })
+    // Return the client secret for embedded checkout
+    return NextResponse.json({
+      clientSecret: checkoutSession.client_secret,
+    })
   } catch (error) {
     console.error('Stripe checkout error:', error)
     return NextResponse.json(

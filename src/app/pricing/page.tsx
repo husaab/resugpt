@@ -9,6 +9,7 @@ import { StaggerContainer, StaggerItem } from '@/components/motion/stagger-conta
 import { FadeIn } from '@/components/motion/fade-in'
 import { PricingCard } from '@/components/pricing/PricingCard'
 import { BillingToggle } from '@/components/pricing/BillingToggle'
+import { CheckoutModal } from '@/components/pricing/CheckoutModal'
 import {
   PRICING_TIERS,
   BillingPeriod,
@@ -34,7 +35,7 @@ const CheckIcon = () => (
 )
 
 function PricingContent() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly')
@@ -42,22 +43,32 @@ function PricingContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Checkout modal state
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Handle checkout cancelled - show message
+  // Handle checkout completion - refresh session to get updated subscription
   useEffect(() => {
-    if (searchParams.get('checkout') === 'cancelled') {
+    const checkoutStatus = searchParams.get('checkout')
+
+    if (checkoutStatus === 'complete') {
+      // Refresh session to get updated subscription status
+      updateSession()
+      // Clear the URL params and redirect to settings
+      router.replace('/settings?checkout=success', { scroll: false })
+    } else if (checkoutStatus === 'cancelled') {
       setError('Checkout was cancelled. You can try again when ready.')
-      // Clear the URL param
       router.replace('/pricing', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, updateSession])
 
   // Calculate savings for the Pro tier (most meaningful comparison)
   const proTier = PRICING_TIERS.find((t) => t.id === 'pro')
-  const annualSavings = proTier ? getAnnualSavings(proTier.monthlyPrice) : 0
+  const annualSavings = proTier ? getAnnualSavings(proTier) : 0
 
   // Get current user's subscription tier
   const currentTier =
@@ -101,16 +112,23 @@ function PricingContent() {
         throw new Error(data.error || 'Failed to create checkout session')
       }
 
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url
+      // Open the checkout modal with the client secret
+      if (data.clientSecret) {
+        setClientSecret(data.clientSecret)
+        setCheckoutOpen(true)
       }
     } catch (err) {
       console.error('Checkout error:', err)
       setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
       setIsLoading(false)
     }
   }, [session, currentTier, billingPeriod, router])
+
+  const handleCloseCheckout = useCallback(() => {
+    setCheckoutOpen(false)
+    setClientSecret(null)
+  }, [])
 
   return (
     <div className="min-h-screen pt-24 pb-16">
@@ -162,7 +180,7 @@ function PricingContent() {
               className="mt-4 text-sm"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Redirecting to checkout...
+              Preparing checkout...
             </motion.div>
           )}
         </FadeIn>
@@ -222,6 +240,13 @@ function PricingContent() {
           </div>
         </FadeIn>
       </div>
+
+      {/* Checkout Modal */}
+      <CheckoutModal
+        isOpen={checkoutOpen}
+        onClose={handleCloseCheckout}
+        clientSecret={clientSecret}
+      />
     </div>
   )
 }

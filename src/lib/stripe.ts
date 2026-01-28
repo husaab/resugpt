@@ -1,32 +1,50 @@
 import Stripe from 'stripe'
 import { SubscriptionTier } from './pricing'
 
+// Determine if we're in test mode
+const isTestMode = process.env.STRIPE_MODE === 'test'
+
+// Get the appropriate keys based on mode
+const secretKey = isTestMode
+  ? process.env.STRIPE_TEST_SECRET_KEY
+  : process.env.STRIPE_LIVE_SECRET_KEY
+
 // Initialize Stripe with the secret key (server-side only)
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set in environment variables')
+if (!secretKey) {
+  console.warn(`Stripe ${isTestMode ? 'test' : 'live'} secret key is not set`)
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-12-15.clover',
-  typescript: true,
-})
+export const stripe = secretKey
+  ? new Stripe(secretKey, {
+      apiVersion: '2025-12-15.clover',
+      typescript: true,
+    })
+  : null
 
 // Price IDs from Stripe Dashboard - mapped by tier and billing period
 export const STRIPE_PRICE_IDS = {
   pro: {
-    monthly: process.env.STRIPE_PRICE_PRO_MONTHLY!,
-    annual: process.env.STRIPE_PRICE_PRO_ANNUAL!,
+    monthly: isTestMode
+      ? process.env.STRIPE_TEST_PRICE_PRO_MONTHLY!
+      : process.env.STRIPE_LIVE_PRICE_PRO_MONTHLY!,
+    annual: isTestMode
+      ? process.env.STRIPE_TEST_PRICE_PRO_ANNUAL!
+      : process.env.STRIPE_LIVE_PRICE_PRO_ANNUAL!,
   },
   premium: {
-    monthly: process.env.STRIPE_PRICE_PREMIUM_MONTHLY!,
-    annual: process.env.STRIPE_PRICE_PREMIUM_ANNUAL!,
+    monthly: isTestMode
+      ? process.env.STRIPE_TEST_PRICE_PREMIUM_MONTHLY!
+      : process.env.STRIPE_LIVE_PRICE_PREMIUM_MONTHLY!,
+    annual: isTestMode
+      ? process.env.STRIPE_TEST_PRICE_PREMIUM_ANNUAL!
+      : process.env.STRIPE_LIVE_PRICE_PREMIUM_ANNUAL!,
   },
 } as const
 
 // Credits allocation per tier - resets monthly
 export const TIER_CREDITS: Record<SubscriptionTier, number> = {
   free: 3,
-  pro: 30,
+  pro: 50,
   premium: 999,
 }
 
@@ -59,3 +77,6 @@ export function getPriceId(
 export function isPaidTier(tier: string): tier is Exclude<SubscriptionTier, 'free'> {
   return tier === 'pro' || tier === 'premium'
 }
+
+// Export test mode status for client components
+export const STRIPE_TEST_MODE = isTestMode

@@ -8,7 +8,6 @@ import {
   BillingPeriod,
   getDisplayPrice,
   getPriceLabel,
-  getAnnualPrice,
   formatPrice,
 } from '@/lib/pricing'
 import { cn } from '@/lib/utils'
@@ -85,7 +84,7 @@ export function PricingCard({
         {/* Annual billing note */}
         {billingPeriod === 'annual' && !isFreeTier && (
           <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
-            {formatPrice(tier.monthlyPrice)}/mo billed annually
+            {formatPrice(tier.annualPrice / 12)}/month  
           </p>
         )}
       </div>
