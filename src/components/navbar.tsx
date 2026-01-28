@@ -3,12 +3,50 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { ThemeSwitch } from './theme-switch'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { SignOutModal } from './auth/SignOutModal'
 import { cn } from '@/lib/utils'
+
+// Navigation link component with proper spacing and hover states
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isActive = pathname === href
+
+  return (
+    <Link href={href}>
+      <motion.span
+        className={cn(
+          'relative px-3 py-2 text-sm font-medium cursor-pointer transition-colors rounded-lg',
+          isActive
+            ? 'text-[var(--accent-color)]'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
+        )}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        {children}
+        {isActive && (
+          <motion.div
+            layoutId="navbar-indicator"
+            className="absolute bottom-0 left-3 right-3 h-0.5 bg-[var(--accent-color)] rounded-full"
+            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+          />
+        )}
+      </motion.span>
+    </Link>
+  )
+}
+
+// Vertical divider for visual separation
+function NavDivider() {
+  return (
+    <div className="h-5 w-px bg-[var(--border-color)] mx-1" />
+  )
+}
 
 export function Navbar() {
   const { data: session } = useSession()
@@ -41,14 +79,14 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="flex items-center gap-2.5 group">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2.5"
               >
                 {/* Logo icon */}
-                <div className="w-8 h-8 rounded-lg bg-[var(--accent-color)] flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
                   <svg
                     className="w-5 h-5 text-white"
                     fill="none"
@@ -64,7 +102,7 @@ export function Navbar() {
                   </svg>
                 </div>
                 <span
-                  className="text-xl font-bold transition-colors"
+                  className="text-xl font-bold tracking-tight transition-colors"
                   style={{ color: 'var(--text-primary)' }}
                 >
                   Resu<span style={{ color: 'var(--accent-color)' }}>GPT</span>
@@ -73,9 +111,7 @@ export function Navbar() {
             </Link>
 
             {/* Right side actions */}
-            <div className="flex items-center gap-3">
-              <ThemeSwitch />
-
+            <div className="flex items-center gap-2">
               <AnimatePresence mode="wait">
                 {mounted && session?.user ? (
                   <motion.div
@@ -84,55 +120,82 @@ export function Navbar() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-center gap-3"
+                    className="flex items-center"
                   >
-                    {/* Pricing link */}
-                    <Link href="/pricing">
-                      <motion.span
-                        whileHover={{ scale: 1.02 }}
-                        className="text-sm font-medium cursor-pointer transition-colors"
-                        style={{ color: 'var(--text-secondary)' }}
-                      >
-                        Pricing
-                      </motion.span>
-                    </Link>
+                    {/* Navigation links group */}
+                    <nav className="hidden sm:flex items-center gap-1 mr-4">
+                      <NavLink href="/cover-letter">Cover Letter</NavLink>
+                      <NavLink href="/cover-letters">My Letters</NavLink>
+                      <NavLink href="/resumes">My Resumes</NavLink>
+                      <NavLink href="/pricing">Pricing</NavLink>
+                    </nav>
+
+                    <NavDivider />
+
+                    {/* Theme toggle */}
+                    <div className="px-2">
+                      <ThemeSwitch />
+                    </div>
+
+                    <NavDivider />
 
                     {/* Credits badge */}
-                    <Badge variant="primary" size="md">
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
+                    <div className="px-2">
+                      <Badge
+                        variant={
+                          session.user.subscriptionStatus === 'premium'
+                            ? 'primary'
+                            : session.user.credits === 0
+                            ? 'error'
+                            : session.user.credits <= 2
+                            ? 'warning'
+                            : 'primary'
+                        }
+                        size="md"
                       >
-                        <path d="M12 2L13.09 8.26L20 9L14.18 12.74L16.18 20L12 16L7.82 20L9.82 12.74L4 9L10.91 8.26L12 2Z" />
-                      </svg>
-                      {session.user.credits} credits
-                    </Badge>
-
-                    {/* User avatar */}
-                    <Link href="/settings">
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="w-8 h-8 rounded-full bg-[var(--accent-light)] flex items-center justify-center cursor-pointer"
-                      >
-                        <span
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--accent-color)' }}
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          {session.user.name?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </motion.div>
-                    </Link>
+                          <path d="M12 2L13.09 8.26L20 9L14.18 12.74L16.18 20L12 16L7.82 20L9.82 12.74L4 9L10.91 8.26L12 2Z" />
+                        </svg>
+                        {session.user.subscriptionStatus === 'premium'
+                          ? 'Unlimited'
+                          : `${session.user.credits} credit${session.user.credits !== 1 ? 's' : ''}`}
+                      </Badge>
+                    </div>
 
-                    {/* Sign out button */}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setShowSignOutModal(true)}
-                    >
-                      Sign Out
-                    </Button>
+                    <NavDivider />
+
+                    {/* User actions group */}
+                    <div className="flex items-center gap-2 pl-2">
+                      {/* User avatar */}
+                      <Link href="/settings">
+                        <motion.div
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="w-9 h-9 rounded-full bg-[var(--accent-light)] flex items-center justify-center cursor-pointer border-2 border-transparent hover:border-[var(--accent-color)] transition-colors"
+                        >
+                          <span
+                            className="text-sm font-semibold"
+                            style={{ color: 'var(--accent-color)' }}
+                          >
+                            {session.user.name?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        </motion.div>
+                      </Link>
+
+                      {/* Sign out button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowSignOutModal(true)}
+                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      >
+                        Sign Out
+                      </Button>
+                    </div>
                   </motion.div>
                 ) : mounted ? (
                   <motion.div
@@ -141,10 +204,12 @@ export function Navbar() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-3"
                   >
+                    <ThemeSwitch />
+                    <NavDivider />
                     <Link href="/auth">
-                      <Button variant="secondary" size="sm">
+                      <Button variant="ghost" size="sm">
                         Log in
                       </Button>
                     </Link>
@@ -156,8 +221,9 @@ export function Navbar() {
                   </motion.div>
                 ) : (
                   // Skeleton while loading
-                  <div className="flex items-center gap-2">
-                    <div className="h-9 w-16 rounded-xl bg-[var(--bg-muted)] animate-pulse" />
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-[var(--bg-muted)] animate-pulse" />
+                    <div className="h-9 w-20 rounded-xl bg-[var(--bg-muted)] animate-pulse" />
                     <div className="h-9 w-24 rounded-xl bg-[var(--bg-muted)] animate-pulse" />
                   </div>
                 )}

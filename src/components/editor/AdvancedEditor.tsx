@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 
 interface AdvancedEditorProps {
   latex: string
@@ -8,6 +8,9 @@ interface AdvancedEditorProps {
 }
 
 export function AdvancedEditor({ latex, onChange }: AdvancedEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const lineNumbersRef = useRef<HTMLDivElement>(null)
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       onChange(e.target.value)
@@ -15,38 +18,48 @@ export function AdvancedEditor({ latex, onChange }: AdvancedEditorProps) {
     [onChange]
   )
 
+  // Sync line numbers scroll with textarea
+  const handleScroll = useCallback(() => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop
+    }
+  }, [])
+
+  const lineCount = latex ? latex.split('\n').length : 1
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col border border-[var(--border-color)] rounded-xl overflow-hidden">
       <div className="px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-muted)]">
         <p className="text-sm text-[var(--text-secondary)]">
           Edit the LaTeX source directly. Changes here will override the structured editor.
         </p>
       </div>
 
-      <div className="flex-1 relative">
-        <textarea
-          value={latex}
-          onChange={handleChange}
-          className="w-full h-full p-4 font-mono text-sm bg-[var(--bg-body)] text-[var(--text-primary)] resize-none focus:outline-none border-0"
-          spellCheck={false}
-          placeholder="LaTeX source will appear here after generation..."
-        />
-
-        {/* Line numbers overlay - simple implementation */}
-        <div className="absolute left-0 top-0 bottom-0 w-12 pointer-events-none border-r border-[var(--border-color)] bg-[var(--bg-muted)]/50">
-          <div className="p-4 font-mono text-xs text-[var(--text-tertiary)] leading-[1.5rem]">
-            {latex.split('\n').slice(0, 100).map((_, i) => (
-              <div key={i}>{i + 1}</div>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Line numbers */}
+        <div
+          ref={lineNumbersRef}
+          className="w-12 bg-[var(--bg-muted)] border-r border-[var(--border-color)] overflow-hidden select-none"
+        >
+          <div className="py-3 px-2 font-mono text-xs text-[var(--text-tertiary)] text-right">
+            {Array.from({ length: lineCount }, (_, i) => (
+              <div key={i} className="h-[1.5rem] leading-[1.5rem]">
+                {i + 1}
+              </div>
             ))}
           </div>
         </div>
 
-        <style jsx>{`
-          textarea {
-            padding-left: 3.5rem;
-            line-height: 1.5rem;
-          }
-        `}</style>
+        {/* Editor */}
+        <textarea
+          ref={textareaRef}
+          value={latex}
+          onChange={handleChange}
+          onScroll={handleScroll}
+          className="flex-1 p-3 font-mono text-sm bg-[var(--bg-body)] text-[var(--text-primary)] resize-none focus:outline-none border-0 leading-[1.5rem]"
+          spellCheck={false}
+          placeholder="LaTeX source will appear here after generation..."
+        />
       </div>
     </div>
   )

@@ -41,6 +41,10 @@ export interface ResumeSkills {
 }
 
 export interface ResumeData {
+  // Metadata extracted from job description during generation
+  targetCompany?: string;
+  targetRole?: string;
+  // Resume content
   header: ResumeHeader;
   education: EducationEntry[];
   experience: ExperienceEntry[];
@@ -65,6 +69,8 @@ export interface ResumeListItem {
   title: string;
   targetCompany?: string;
   targetRole?: string;
+  thumbnailUrl?: string | null;
+  pdfUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

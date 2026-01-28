@@ -25,7 +25,7 @@ export function SectionAccordion({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)]/80 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)]/80 transition-colors sticky top-0 z-10"
       >
         <span className="font-semibold text-[var(--text-primary)]">{title}</span>
         <motion.div

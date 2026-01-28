@@ -6,6 +6,7 @@ import {
   SaveResumeResponse,
   Resume,
   ResumeListItem,
+  ResumeData,
 } from '@/types/resume';
 
 const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -23,15 +24,16 @@ export const generateResume = async (
 };
 
 /**
- * Compile LaTeX to PDF and return as blob
+ * Compile to PDF and return as blob
+ * Can accept either latex string OR resumeData object
  */
-export const compileResume = async (latex: string): Promise<Blob> => {
+export const compileResume = async (options: { latex?: string; resumeData?: ResumeData }): Promise<Blob> => {
   const response = await fetch(`${baseURL}resume/compile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ latex }),
+    body: JSON.stringify(options),
   });
 
   if (!response.ok) {

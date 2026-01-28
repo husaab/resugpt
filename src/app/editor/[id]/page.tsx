@@ -43,6 +43,10 @@ export default function EditorPage() {
   const [compileError, setCompileError] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
+  // Track if we've already auto-compiled and if resume needs thumbnail generation
+  const [hasAutoCompiled, setHasAutoCompiled] = useState(false)
+  const [needsThumbnail, setNeedsThumbnail] = useState(false)
+
   // Load resume data
   useEffect(() => {
     if (status === 'loading') return
@@ -64,6 +68,8 @@ export default function EditorPage() {
           setLatex(response.data.latex)
           setJobDescription(response.data.jobDescription || '')
           setTitle(response.data.title || 'Untitled Resume')
+          // Check if resume needs thumbnail generation (no pdfPath means it was never saved with PDF)
+          setNeedsThumbnail(!response.data.pdfPath)
         }
       } catch (err: any) {
         console.error('Failed to load resume:', err)
@@ -75,6 +81,50 @@ export default function EditorPage() {
 
     loadResume()
   }, [resumeId, session?.user?.googleId, status, router])
+
+  // Auto-compile PDF when resume data loads, and auto-save if thumbnail is missing
+  useEffect(() => {
+    const autoCompileAndSave = async () => {
+      if (!isLoading && resumeData && latex && !hasAutoCompiled && !pdfUrl) {
+        setHasAutoCompiled(true)
+
+        try {
+          setIsCompiling(true)
+          setCompileError(null)
+
+          // Compile PDF for preview
+          const pdfBlob = await compileResume({ resumeData })
+          const url = URL.createObjectURL(pdfBlob)
+          setPdfUrl(url)
+
+          // If resume needs thumbnail, auto-save to generate it on backend
+          if (needsThumbnail && session?.user?.googleId) {
+            console.log('Auto-saving to generate thumbnail...')
+            try {
+              await saveResume({
+                id: resumeId,
+                resumeData,
+                latex,
+                jobDescription,
+                googleId: session.user.googleId,
+              })
+              setNeedsThumbnail(false)
+              console.log('Auto-save complete - thumbnail should be generated')
+            } catch (saveErr) {
+              console.error('Auto-save failed:', saveErr)
+            }
+          }
+        } catch (err: any) {
+          console.error('Auto-compile failed:', err)
+          setCompileError(err.message || 'Failed to compile PDF')
+        } finally {
+          setIsCompiling(false)
+        }
+      }
+    }
+
+    autoCompileAndSave()
+  }, [isLoading, resumeData, latex, hasAutoCompiled, pdfUrl, needsThumbnail, session?.user?.googleId, resumeId, jobDescription])
 
   // Track unsaved changes
   const handleResumeDataChange = useCallback((data: ResumeData) => {
@@ -114,7 +164,7 @@ export default function EditorPage() {
 
   // Compile PDF
   const handleCompile = async () => {
-    if (!latex) return
+    if (!resumeData && !latex) return
 
     try {
       setIsCompiling(true)
@@ -125,7 +175,13 @@ export default function EditorPage() {
         URL.revokeObjectURL(pdfUrl)
       }
 
-      const pdfBlob = await compileResume(latex)
+      // Send resumeData if in structured mode, otherwise send latex
+      // This ensures edits in structured mode are reflected in the PDF
+      const pdfBlob = await compileResume(
+        editorMode === 'structured' && resumeData
+          ? { resumeData }
+          : { latex }
+      )
       const url = URL.createObjectURL(pdfBlob)
       setPdfUrl(url)
     } catch (err: any) {
@@ -170,9 +226,20 @@ export default function EditorPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasUnsavedChanges])
 
+  // Handle back navigation with unsaved changes guard
+  const handleBack = () => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.'
+      )
+      if (!confirmed) return
+    }
+    router.push('/')
+  }
+
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-body)]">
+      <div className="min-h-screen pt-16 flex items-center justify-center bg-[var(--bg-body)]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-3 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[var(--text-secondary)]">Loading editor...</p>
@@ -183,7 +250,7 @@ export default function EditorPage() {
 
   if (error && !resumeData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-body)]">
+      <div className="min-h-screen pt-16 flex items-center justify-center bg-[var(--bg-body)]">
         <div className="text-center">
           <p className="text-[var(--error)] mb-4">{error}</p>
           <Button variant="secondary" onClick={() => router.push('/')}>
@@ -195,15 +262,15 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)] flex flex-col">
+    <div className="min-h-screen pt-16 bg-[var(--bg-body)] flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-[var(--border-color)] bg-[var(--bg-elevated)]">
+      <header className="sticky top-16 z-40 border-b border-[var(--border-color)] bg-[var(--bg-elevated)]">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/')}
+              onClick={handleBack}
               className="gap-2"
             >
               <ArrowLeftIcon className="w-4 h-4" />
@@ -272,8 +339,8 @@ export default function EditorPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Editor Panel */}
-        <div className="w-1/2 border-r border-[var(--border-color)] overflow-y-auto">
+        {/* Editor Panel - scrollable */}
+        <div className="w-1/2 h-[calc(100vh-120px)] border-r border-[var(--border-color)] overflow-y-auto">
           <div className="p-4">
             {editorMode === 'structured' && resumeData ? (
               <StructuredEditor
@@ -289,8 +356,8 @@ export default function EditorPage() {
           </div>
         </div>
 
-        {/* Preview Panel */}
-        <div className="w-1/2 p-4">
+        {/* Preview Panel - fixed on right */}
+        <div className="w-1/2 h-[calc(100vh-120px)] p-4">
           <PreviewPanel
             pdfUrl={pdfUrl}
             isCompiling={isCompiling}

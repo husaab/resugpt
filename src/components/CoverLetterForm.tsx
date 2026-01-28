@@ -10,20 +10,31 @@ import { FadeIn } from './motion/fade-in'
 import { cn } from '@/lib/utils'
 import { LoginModal } from './auth/LoginModal'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
-import { useFormPersistence } from '@/hooks/useFormPersistence'
-import { useCreditRefresh } from '@/hooks/useCreditRefresh'
-import { generateResume } from '@/services/resumeService'
-import { CreditWarningBanner } from './credits/CreditWarningBanner'
+import { useCoverLetterFormPersistence } from '@/hooks/useCoverLetterFormPersistence'
+import { generateCoverLetter } from '@/services/coverLetterService'
+import { CoverLetterTone } from '@/types/coverLetter'
 
 // Dynamic import for pdfjs to avoid SSR issues
 let pdfjsLib: any = null
 
 interface FormData {
   pdf: string | null
+  jobTitle: string
   jobDescription: string
+  companyName: string
+  location: string
+  tone: CoverLetterTone
 }
 
-export function ResumeForm() {
+const TONE_OPTIONS: { value: CoverLetterTone; label: string; description: string }[] = [
+  { value: 'professional', label: 'Professional', description: 'Polished and business-appropriate' },
+  { value: 'formal', label: 'Formal', description: 'Traditional and respectful' },
+  { value: 'confident', label: 'Confident', description: 'Bold and assertive' },
+  { value: 'enthusiastic', label: 'Enthusiastic', description: 'Energetic and passionate' },
+  { value: 'casual', label: 'Casual', description: 'Friendly and conversational' },
+]
+
+export function CoverLetterForm() {
   const router = useRouter()
   const [isPdfReady, setIsPdfReady] = useState<boolean>(false)
   const [pdfFileName, setPdfFileName] = useState<string | null>(null)
@@ -34,17 +45,7 @@ export function ResumeForm() {
 
   // Auth guard and form persistence hooks
   const authGuard = useAuthGuard()
-  const { saveFormData, getFormData, clearFormData } = useFormPersistence()
-  const { refreshCredits } = useCreditRefresh()
-
-  // Optimistic credit state for immediate UI feedback
-  const [optimisticCredits, setOptimisticCredits] = useState<number | null>(null)
-
-  // Derive credit values from session with optimistic override
-  const sessionCredits = authGuard.session?.user?.credits ?? 0
-  const subscriptionStatus = authGuard.session?.user?.subscriptionStatus
-  const displayCredits = optimisticCredits !== null ? optimisticCredits : sessionCredits
-  const canGenerate = subscriptionStatus === 'premium' || displayCredits > 0
+  const { saveFormData, getFormData, clearFormData } = useCoverLetterFormPersistence()
 
   useEffect(() => {
     const loadPdfJs = async () => {
@@ -74,14 +75,17 @@ export function ResumeForm() {
     setValue,
     formState: { errors, isSubmitting },
     watch,
-  } = useForm<FormData>()
+  } = useForm<FormData>({
+    defaultValues: {
+      tone: 'professional',
+    },
+  })
 
   // Restore form state from localStorage after successful login
   useEffect(() => {
     if (authGuard.isAuthenticated) {
       const savedData = getFormData()
       if (savedData) {
-        // Restore form values silently
         if (savedData.pdf) {
           setValue('pdf', savedData.pdf)
           setIsPdfReady(true)
@@ -89,10 +93,21 @@ export function ResumeForm() {
         if (savedData.pdfFileName) {
           setPdfFileName(savedData.pdfFileName)
         }
+        if (savedData.jobTitle) {
+          setValue('jobTitle', savedData.jobTitle)
+        }
         if (savedData.jobDescription) {
           setValue('jobDescription', savedData.jobDescription)
         }
-        // Clear localStorage after restoration
+        if (savedData.companyName) {
+          setValue('companyName', savedData.companyName)
+        }
+        if (savedData.location) {
+          setValue('location', savedData.location)
+        }
+        if (savedData.tone) {
+          setValue('tone', savedData.tone)
+        }
         clearFormData()
       }
     }
@@ -199,65 +214,54 @@ export function ResumeForm() {
   const onSubmit = async (data: FormData) => {
     // Check if user is authenticated
     if (!authGuard.isAuthenticated) {
-      // Save form state to localStorage before showing login modal
       saveFormData({
         pdf: data.pdf,
-        jobDescription: data.jobDescription,
         pdfFileName: pdfFileName,
+        jobTitle: data.jobTitle,
+        jobDescription: data.jobDescription,
+        companyName: data.companyName,
+        location: data.location,
+        tone: data.tone,
       })
-      // Show login modal
       authGuard.setShowLoginModal(true)
       return
     }
 
-    // Clear any previous errors
     setSubmitError(null)
 
-    // Get user's Google ID from session
     const googleId = authGuard.session?.user?.googleId
     if (!googleId) {
       setSubmitError('Session error. Please try logging in again.')
       return
     }
 
-    // Check credits (use current session value, not optimistic)
-    if (subscriptionStatus !== 'premium' && sessionCredits <= 0) {
+    // Check credits
+    const credits = authGuard.session?.user?.credits ?? 0
+    const subscriptionStatus = authGuard.session?.user?.subscriptionStatus
+    if (subscriptionStatus !== 'premium' && credits <= 0) {
       setSubmitError('You have no credits remaining. Please upgrade your plan to continue.')
       return
     }
 
-    // Optimistic credit decrement for immediate UI feedback
-    if (subscriptionStatus !== 'premium') {
-      setOptimisticCredits(Math.max(0, sessionCredits - 1))
-    }
-
     try {
-      // Call the generate API
-      const response = await generateResume({
+      const response = await generateCoverLetter({
         resumeText: data.pdf || '',
-        jobDescription: data.jobDescription,
+        jobTitle: data.jobTitle,
+        jobDescription: data.jobDescription || undefined,
+        companyName: data.companyName || undefined,
+        location: data.location || undefined,
+        tone: data.tone,
         googleId,
       })
 
       if (response.success && response.data?.id) {
-        // Refresh session to sync credits with backend
-        await refreshCredits()
-        setOptimisticCredits(null)
-        // Clear form persistence data
         clearFormData()
-        // Redirect to the editor
-        router.push(`/editor/${response.data.id}`)
+        router.push(`/cover-letter-editor/${response.data.id}`)
       } else {
-        // Revert optimistic update on failure
-        setOptimisticCredits(null)
-        await refreshCredits() // Re-sync with backend
-        setSubmitError(response.message || 'Failed to generate resume. Please try again.')
+        setSubmitError(response.message || 'Failed to generate cover letter. Please try again.')
       }
     } catch (error: any) {
-      console.error('Resume generation error:', error)
-      // Revert optimistic update on error
-      setOptimisticCredits(null)
-      await refreshCredits() // Re-sync with backend
+      console.error('Cover letter generation error:', error)
       setSubmitError(error.message || 'An unexpected error occurred. Please try again.')
     }
   }
@@ -299,7 +303,6 @@ export function ResumeForm() {
 
               <AnimatePresence mode="wait">
                 {isPdfReady && pdfFileName ? (
-                  // File uploaded state
                   <motion.div
                     key="uploaded"
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -357,7 +360,6 @@ export function ResumeForm() {
                     </button>
                   </motion.div>
                 ) : isLoading ? (
-                  // Loading state
                   <motion.div
                     key="loading"
                     initial={{ opacity: 0 }}
@@ -389,7 +391,6 @@ export function ResumeForm() {
                     </span>
                   </motion.div>
                 ) : (
-                  // Upload zone
                   <motion.div
                     key="upload"
                     initial={{ opacity: 0 }}
@@ -457,7 +458,113 @@ export function ResumeForm() {
               )}
             </div>
 
-            {/* Job Description */}
+            {/* Job Title (Required) */}
+            <div className="space-y-3">
+              <label
+                htmlFor="jobTitle"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Job Title <span style={{ color: 'var(--error)' }}>*</span>
+              </label>
+              <input
+                id="jobTitle"
+                type="text"
+                style={{
+                  backgroundColor: 'var(--bg-body)',
+                  color: 'var(--text-primary)',
+                  borderColor: errors.jobTitle
+                    ? 'var(--error)'
+                    : 'var(--border-color)',
+                }}
+                className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                placeholder="e.g., Software Engineer"
+                {...register('jobTitle', {
+                  required: 'Please provide the job title',
+                })}
+              />
+              {errors.jobTitle && (
+                <p className="text-sm" style={{ color: 'var(--error)' }}>
+                  {errors.jobTitle.message}
+                </p>
+              )}
+            </div>
+
+            {/* Company Name & Location (Optional, side by side) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <label
+                  htmlFor="companyName"
+                  className="block text-sm font-medium"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  Company Name
+                </label>
+                <input
+                  id="companyName"
+                  type="text"
+                  style={{
+                    backgroundColor: 'var(--bg-body)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)',
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                  placeholder="e.g., Google"
+                  {...register('companyName')}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label
+                  htmlFor="location"
+                  className="block text-sm font-medium"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  Location
+                </label>
+                <input
+                  id="location"
+                  type="text"
+                  style={{
+                    backgroundColor: 'var(--bg-body)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)',
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                  placeholder="e.g., San Francisco, CA"
+                  {...register('location')}
+                />
+              </div>
+            </div>
+
+            {/* Tone Selector */}
+            <div className="space-y-3">
+              <label
+                htmlFor="tone"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Tone
+              </label>
+              <select
+                id="tone"
+                style={{
+                  backgroundColor: 'var(--bg-body)',
+                  color: 'var(--text-primary)',
+                  borderColor: 'var(--border-color)',
+                }}
+                className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                {...register('tone')}
+              >
+                {TONE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} - {option.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Job Description (Optional) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label
@@ -482,34 +589,13 @@ export function ResumeForm() {
                 style={{
                   backgroundColor: 'var(--bg-body)',
                   color: 'var(--text-primary)',
-                  borderColor: errors.jobDescription
-                    ? 'var(--error)'
-                    : 'var(--border-color)',
+                  borderColor: 'var(--border-color)',
                 }}
                 className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent resize-none"
-                placeholder="Paste the job description or requirements here..."
-                {...register('jobDescription', {
-                  required: 'Please provide the job description',
-                  minLength: {
-                    value: 10,
-                    message: 'Job description must be at least 10 characters long',
-                  },
-                })}
+                placeholder="Paste the job description or requirements here (optional but recommended for better results)..."
+                {...register('jobDescription')}
               />
-              {errors.jobDescription && (
-                <p className="text-sm" style={{ color: 'var(--error)' }}>
-                  {errors.jobDescription.message}
-                </p>
-              )}
             </div>
-
-            {/* Credit Warning Banner */}
-            {authGuard.isAuthenticated && (
-              <CreditWarningBanner
-                credits={displayCredits}
-                subscriptionStatus={subscriptionStatus}
-              />
-            )}
 
             {/* Error Display */}
             {submitError && (
@@ -529,28 +615,11 @@ export function ResumeForm() {
               type="submit"
               size="lg"
               className="w-full"
-              disabled={!isPdfReady || isSubmitting || (authGuard.isAuthenticated && !canGenerate)}
+              disabled={!isPdfReady || isSubmitting}
               isLoading={isSubmitting}
             >
               {isSubmitting ? (
-                'Generating your tailored resume...'
-              ) : authGuard.isAuthenticated && !canGenerate ? (
-                <>
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                  Out of Credits - Upgrade Required
-                </>
+                'Generating your cover letter...'
               ) : (
                 <>
                   <svg
@@ -566,7 +635,7 @@ export function ResumeForm() {
                       d="M13 10V3L4 14h7v7l9-11h-7z"
                     />
                   </svg>
-                  Generate Tailored Resume
+                  Generate Cover Letter
                 </>
               )}
             </Button>
@@ -576,22 +645,16 @@ export function ResumeForm() {
               className="text-center text-xs"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              {subscriptionStatus === 'premium' ? (
-                'Unlimited generations with Premium'
-              ) : (
-                <>
-                  Uses 1 credit per generation
-                  {authGuard.isAuthenticated && (
-                    <span> · {displayCredits} credit{displayCredits !== 1 ? 's' : ''} remaining</span>
-                  )}
-                </>
+              Uses 1 credit per generation
+              {authGuard.isAuthenticated && authGuard.session?.user?.credits !== undefined && (
+                <span> · {authGuard.session.user.credits} credits remaining</span>
               )}
             </p>
           </form>
         </CardContent>
       </Card>
 
-      {/* Login Modal - appears when unauthenticated user tries to submit */}
+      {/* Login Modal */}
       <LoginModal
         isOpen={authGuard.showLoginModal}
         onClose={() => authGuard.setShowLoginModal(false)}
