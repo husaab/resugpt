@@ -13,6 +13,8 @@ export interface LoginResponse {
     name: string;
     credits: number;
     subscriptionStatus: string;
+    cancelAtPeriodEnd: boolean;
+    subscriptionEndsAt: string | null;
     createdAt: string;
   };
 }
@@ -23,5 +25,7 @@ export interface User {
   name: string;
   credits: number;
   subscriptionStatus: string;
+  cancelAtPeriodEnd: boolean;
+  subscriptionEndsAt: string | null;
   picture?: string;
 }

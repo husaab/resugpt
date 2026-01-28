@@ -11,6 +11,8 @@ declare module "next-auth" {
       googleId: string
       credits: number
       subscriptionStatus: string
+      cancelAtPeriodEnd: boolean
+      subscriptionEndsAt: string | null
     }
   }
 
@@ -18,6 +20,8 @@ declare module "next-auth" {
     googleId: string
     credits: number
     subscriptionStatus: string
+    cancelAtPeriodEnd: boolean
+    subscriptionEndsAt: string | null
   }
 }
 
@@ -26,5 +30,7 @@ declare module "next-auth/jwt" {
     googleId: string
     credits: number
     subscriptionStatus: string
+    cancelAtPeriodEnd: boolean
+    subscriptionEndsAt: string | null
   }
 }

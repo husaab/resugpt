@@ -31,6 +31,8 @@ export const authOptions: NextAuthOptions = {
                     token.googleId = account.providerAccountId
                     token.credits = response.data.credits
                     token.subscriptionStatus = response.data.subscriptionStatus
+                    token.cancelAtPeriodEnd = response.data.cancelAtPeriodEnd ?? false
+                    token.subscriptionEndsAt = response.data.subscriptionEndsAt ?? null
                 } catch (error) {
                     console.error('JWT callback error:', error)
                 }
@@ -46,6 +48,8 @@ export const authOptions: NextAuthOptions = {
                     })
                     token.credits = response.data.credits
                     token.subscriptionStatus = response.data.subscriptionStatus
+                    token.cancelAtPeriodEnd = response.data.cancelAtPeriodEnd ?? false
+                    token.subscriptionEndsAt = response.data.subscriptionEndsAt ?? null
                 } catch (error) {
                     console.error('Session update error:', error)
                 }
@@ -58,6 +62,8 @@ export const authOptions: NextAuthOptions = {
                 session.user.googleId = token.googleId as string
                 session.user.credits = token.credits as number
                 session.user.subscriptionStatus = token.subscriptionStatus as string
+                session.user.cancelAtPeriodEnd = token.cancelAtPeriodEnd as boolean
+                session.user.subscriptionEndsAt = token.subscriptionEndsAt as string | null
             }
             return session
         },
