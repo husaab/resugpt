@@ -52,14 +52,14 @@ export function Modal({ isOpen, onClose, children, showCloseButton = true }: Mod
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-50 transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal container */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4"
         role="dialog"
         aria-modal="true"
       >

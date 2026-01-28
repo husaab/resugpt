@@ -72,7 +72,7 @@ export function Navbar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+          'fixed top-0 left-0 right-0 z-[55] transition-all duration-300',
           scrolled
             ? 'bg-[var(--bg-body)]/80 backdrop-blur-xl border-b border-[var(--border-color)]'
             : 'bg-transparent'
@@ -210,6 +210,7 @@ export function Navbar() {
                   >
                     <nav className="hidden sm:flex items-center gap-1">
                       <NavLink href="/cover-letter">Cover Letter</NavLink>
+                      <NavLink href="/pricing">Pricing</NavLink>
                     </nav>
                     <NavDivider />
                     <ThemeSwitch />
