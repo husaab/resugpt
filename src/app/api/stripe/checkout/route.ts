@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { stripe, getPriceId, isPaidTier } from '@/lib/stripe'
 import { BillingPeriod } from '@/lib/pricing'
 
@@ -11,7 +12,7 @@ interface CheckoutRequestBody {
 export async function POST(request: NextRequest) {
   try {
     // Verify user is authenticated
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
 
     if (!session?.user?.email) {
       return NextResponse.json(

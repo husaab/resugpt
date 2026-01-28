@@ -6,7 +6,7 @@ import { login } from '@/services/authService'
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!
 
-const authOption: NextAuthOptions = {
+export const authOptions: NextAuthOptions = {
     session: {
         strategy: 'jwt',
         maxAge: 7 * 24 * 60 * 60, 
@@ -65,5 +65,5 @@ const authOption: NextAuthOptions = {
     secret: process.env.NEXTAUTH_SECRET,
 }
 
-const handler = NextAuth(authOption)
+const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
