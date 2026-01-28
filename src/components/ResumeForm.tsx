@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, ChangeEvent, DragEvent } from 'react'
 import { useForm } from 'react-hook-form'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { LoginModal } from './auth/LoginModal'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { useFormPersistence } from '@/hooks/useFormPersistence'
+import { generateResume } from '@/services/resumeService'
 
 // Dynamic import for pdfjs to avoid SSR issues
 let pdfjsLib: any = null
@@ -20,10 +22,12 @@ interface FormData {
 }
 
 export function ResumeForm() {
+  const router = useRouter()
   const [isPdfReady, setIsPdfReady] = useState<boolean>(false)
   const [pdfFileName, setPdfFileName] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auth guard and form persistence hooks
@@ -194,9 +198,44 @@ export function ResumeForm() {
       return
     }
 
-    // User is authenticated - proceed with submission
-    console.log('Form submitted:', data)
-    alert('Form submitted! Check console for data.')
+    // Clear any previous errors
+    setSubmitError(null)
+
+    // Get user's Google ID from session
+    const googleId = authGuard.session?.user?.googleId
+    if (!googleId) {
+      setSubmitError('Session error. Please try logging in again.')
+      return
+    }
+
+    // Check credits
+    const credits = authGuard.session?.user?.credits ?? 0
+    const subscriptionStatus = authGuard.session?.user?.subscriptionStatus
+    if (subscriptionStatus !== 'premium' && credits <= 0) {
+      setSubmitError('You have no credits remaining. Please upgrade your plan to continue.')
+      return
+    }
+
+    try {
+      // Call the generate API
+      const response = await generateResume({
+        resumeText: data.pdf || '',
+        jobDescription: data.jobDescription,
+        googleId,
+      })
+
+      if (response.success && response.data?.id) {
+        // Clear form persistence data
+        clearFormData()
+        // Redirect to the editor
+        router.push(`/editor/${response.data.id}`)
+      } else {
+        setSubmitError(response.message || 'Failed to generate resume. Please try again.')
+      }
+    } catch (error: any) {
+      console.error('Resume generation error:', error)
+      setSubmitError(error.message || 'An unexpected error occurred. Please try again.')
+    }
   }
 
   const removeFile = () => {
@@ -440,16 +479,29 @@ export function ResumeForm() {
               )}
             </div>
 
+            {/* Error Display */}
+            {submitError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-xl border border-[var(--error)]/30 bg-[var(--error-light)]"
+              >
+                <p className="text-sm" style={{ color: 'var(--error)' }}>
+                  {submitError}
+                </p>
+              </motion.div>
+            )}
+
             {/* Submit Button */}
             <Button
               type="submit"
               size="lg"
               className="w-full"
-              disabled={!isPdfReady}
+              disabled={!isPdfReady || isSubmitting}
               isLoading={isSubmitting}
             >
               {isSubmitting ? (
-                'Generating...'
+                'Generating your tailored resume...'
               ) : (
                 <>
                   <svg
@@ -476,6 +528,9 @@ export function ResumeForm() {
               style={{ color: 'var(--text-tertiary)' }}
             >
               Uses 1 credit per generation
+              {authGuard.isAuthenticated && authGuard.session?.user?.credits !== undefined && (
+                <span> · {authGuard.session.user.credits} credits remaining</span>
+              )}
             </p>
           </form>
         </CardContent>
