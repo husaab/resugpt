@@ -80,6 +80,7 @@ export interface GenerateResumeRequest {
   resumeText: string;
   jobDescription: string;
   googleId: string;
+  noJobDescription?: boolean;
 }
 
 export interface GenerateResumeResponse {

@@ -8,6 +8,7 @@ export interface StoredFormState {
   pdf: string | null
   jobDescription: string
   pdfFileName: string | null
+  noJobDescription?: boolean
   timestamp: number
 }
 

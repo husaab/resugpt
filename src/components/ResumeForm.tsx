@@ -23,6 +23,7 @@ let pdfjsLib: any = null
 interface FormData {
   pdf: string | null
   jobDescription: string
+  noJobDescription: boolean
 }
 
 export function ResumeForm() {
@@ -87,6 +88,9 @@ export function ResumeForm() {
         if (savedData.jobDescription) {
           setValue('jobDescription', savedData.jobDescription)
         }
+        if (savedData.noJobDescription) {
+          setValue('noJobDescription', savedData.noJobDescription)
+        }
         // Clear localStorage after restoration
         clearFormData()
       }
@@ -94,6 +98,7 @@ export function ResumeForm() {
   }, [authGuard.isAuthenticated, getFormData, setValue, clearFormData])
 
   const jobDescription = watch('jobDescription')
+  const noJobDescription = watch('noJobDescription')
 
   const handleFileButtonClick = () => {
     fileInputRef.current?.click()
@@ -199,6 +204,7 @@ export function ResumeForm() {
         pdf: data.pdf,
         jobDescription: data.jobDescription,
         pdfFileName: pdfFileName,
+        noJobDescription: data.noJobDescription,
       })
       // Show login modal
       authGuard.setShowLoginModal(true)
@@ -230,6 +236,7 @@ export function ResumeForm() {
         resumeText: data.pdf || '',
         jobDescription: data.jobDescription,
         googleId,
+        noJobDescription: data.noJobDescription,
       })
 
       if (response.success && response.data?.id) {
@@ -267,7 +274,7 @@ export function ResumeForm() {
     if (!isPdfReady) {
       missing.push('Upload your resume (PDF)')
     }
-    if (!jobDescription || jobDescription.length < 10) {
+    if (!noJobDescription && (!jobDescription || jobDescription.length < 10)) {
       missing.push('Enter job description (min 10 characters)')
     }
     return missing
@@ -472,7 +479,7 @@ export function ResumeForm() {
                 >
                   Job Description
                 </label>
-                {jobDescription && (
+                {!noJobDescription && jobDescription && (
                   <span
                     className="text-xs"
                     style={{ color: 'var(--text-tertiary)' }}
@@ -481,31 +488,87 @@ export function ResumeForm() {
                   </span>
                 )}
               </div>
-              <textarea
-                id="jobDescription"
-                rows={5}
-                style={{
-                  backgroundColor: 'var(--bg-body)',
-                  color: 'var(--text-primary)',
-                  borderColor: errors.jobDescription
-                    ? 'var(--error)'
-                    : 'var(--border-color)',
-                }}
-                className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent resize-none"
-                placeholder="Paste the job description or requirements here..."
-                {...register('jobDescription', {
-                  required: 'Please provide the job description',
-                  minLength: {
-                    value: 10,
-                    message: 'Job description must be at least 10 characters long',
-                  },
-                })}
-              />
-              {errors.jobDescription && (
-                <p className="text-sm" style={{ color: 'var(--error)' }}>
-                  {errors.jobDescription.message}
-                </p>
-              )}
+
+              {/* Animated textarea */}
+              <AnimatePresence mode="wait">
+                {!noJobDescription && (
+                  <motion.div
+                    key="textarea"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+                  >
+                    <textarea
+                      id="jobDescription"
+                      rows={5}
+                      style={{
+                        backgroundColor: 'var(--bg-body)',
+                        color: 'var(--text-primary)',
+                        borderColor: errors.jobDescription
+                          ? 'var(--error)'
+                          : 'var(--border-color)',
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border text-base transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent resize-none"
+                      placeholder="Paste the job description or requirements here..."
+                      {...register('jobDescription', {
+                        validate: (value) => {
+                          if (noJobDescription) return true
+                          if (!value) return 'Please provide the job description'
+                          if (value.length < 10) return 'Job description must be at least 10 characters long'
+                          return true
+                        },
+                      })}
+                    />
+                    {errors.jobDescription && (
+                      <p className="text-sm mt-2" style={{ color: 'var(--error)' }}>
+                        {errors.jobDescription.message}
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* No job description checkbox */}
+              <label className="flex items-center gap-3 cursor-pointer group select-none">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    {...register('noJobDescription')}
+                    className="peer sr-only"
+                  />
+                  {/* Custom checkbox */}
+                  <div
+                    className={cn(
+                      "w-5 h-5 rounded-md border-2 transition-all duration-200 ease-out",
+                      "peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent-color)] peer-focus-visible:ring-offset-2",
+                      "group-hover:border-[var(--border-hover)]",
+                      noJobDescription
+                        ? "border-[var(--accent-color)] bg-[var(--accent-color)]"
+                        : "border-[var(--border-color)] bg-[var(--bg-body)]"
+                    )}
+                  />
+                  {/* Checkmark icon */}
+                  <svg
+                    className={cn(
+                      "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 text-white transition-all duration-200 ease-out",
+                      noJobDescription ? "opacity-100 scale-100" : "opacity-0 scale-50"
+                    )}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span
+                  className="text-sm transition-colors duration-200 group-hover:text-[var(--text-primary)]"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  No job description, I just want to advance my resume
+                </span>
+              </label>
             </div>
 
             {/* Credit Warning Banner */}
@@ -539,7 +602,7 @@ export function ResumeForm() {
                 type="submit"
                 size="lg"
                 className="w-full"
-                disabled={!isPdfReady || !jobDescription || jobDescription.length < 10 || isSubmitting || (authGuard.isAuthenticated && !canGenerate)}
+                disabled={!isPdfReady || (!noJobDescription && (!jobDescription || jobDescription.length < 10)) || isSubmitting || (authGuard.isAuthenticated && !canGenerate)}
                 isLoading={isSubmitting}
               >
                 {isSubmitting ? (
