@@ -11,8 +11,10 @@ import { cn } from '@/lib/utils'
 import { LoginModal } from './auth/LoginModal'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { useCoverLetterFormPersistence } from '@/hooks/useCoverLetterFormPersistence'
+import { useCredits } from '@/contexts/CreditContext'
 import { generateCoverLetter } from '@/services/coverLetterService'
 import { CoverLetterTone } from '@/types/coverLetter'
+import { CreditWarningBanner } from './credits/CreditWarningBanner'
 
 // Dynamic import for pdfjs to avoid SSR issues
 let pdfjsLib: any = null
@@ -46,6 +48,9 @@ export function CoverLetterForm() {
   // Auth guard and form persistence hooks
   const authGuard = useAuthGuard()
   const { saveFormData, getFormData, clearFormData } = useCoverLetterFormPersistence()
+
+  // Shared credit state (updates navbar instantly)
+  const { displayCredits, subscriptionStatus, canGenerate, decrementCredits, refreshCredits } = useCredits()
 
   useEffect(() => {
     const loadPdfJs = async () => {
@@ -236,12 +241,13 @@ export function CoverLetterForm() {
     }
 
     // Check credits
-    const credits = authGuard.session?.user?.credits ?? 0
-    const subscriptionStatus = authGuard.session?.user?.subscriptionStatus
-    if (subscriptionStatus !== 'premium' && credits <= 0) {
+    if (!canGenerate) {
       setSubmitError('You have no credits remaining. Please upgrade your plan to continue.')
       return
     }
+
+    // Optimistic credit decrement for immediate UI feedback (updates navbar too)
+    decrementCredits()
 
     try {
       const response = await generateCoverLetter({
@@ -255,13 +261,19 @@ export function CoverLetterForm() {
       })
 
       if (response.success && response.data?.id) {
+        // Refresh session to sync credits with backend (clears optimistic state)
+        await refreshCredits()
         clearFormData()
         router.push(`/cover-letter-editor/${response.data.id}`)
       } else {
+        // Revert optimistic update and re-sync with backend
+        await refreshCredits()
         setSubmitError(response.message || 'Failed to generate cover letter. Please try again.')
       }
     } catch (error: any) {
       console.error('Cover letter generation error:', error)
+      // Revert optimistic update and re-sync with backend
+      await refreshCredits()
       setSubmitError(error.message || 'An unexpected error occurred. Please try again.')
     }
   }
@@ -597,6 +609,14 @@ export function CoverLetterForm() {
               />
             </div>
 
+            {/* Credit Warning Banner */}
+            {authGuard.isAuthenticated && (
+              <CreditWarningBanner
+                credits={displayCredits}
+                subscriptionStatus={subscriptionStatus}
+              />
+            )}
+
             {/* Error Display */}
             {submitError && (
               <motion.div
@@ -615,11 +635,28 @@ export function CoverLetterForm() {
               type="submit"
               size="lg"
               className="w-full"
-              disabled={!isPdfReady || isSubmitting}
+              disabled={!isPdfReady || isSubmitting || (authGuard.isAuthenticated && !canGenerate)}
               isLoading={isSubmitting}
             >
               {isSubmitting ? (
                 'Generating your cover letter...'
+              ) : authGuard.isAuthenticated && !canGenerate ? (
+                <>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  Out of Credits - Upgrade Required
+                </>
               ) : (
                 <>
                   <svg
@@ -645,9 +682,15 @@ export function CoverLetterForm() {
               className="text-center text-xs"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              Uses 1 credit per generation
-              {authGuard.isAuthenticated && authGuard.session?.user?.credits !== undefined && (
-                <span> · {authGuard.session.user.credits} credits remaining</span>
+              {subscriptionStatus === 'premium' ? (
+                'Unlimited generations with Premium'
+              ) : (
+                <>
+                  Uses 1 credit per generation
+                  {authGuard.isAuthenticated && (
+                    <span> · {displayCredits} credit{displayCredits !== 1 ? 's' : ''} remaining</span>
+                  )}
+                </>
               )}
             </p>
           </form>

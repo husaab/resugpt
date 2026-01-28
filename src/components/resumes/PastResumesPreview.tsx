@@ -46,15 +46,30 @@ export function PastResumesPreview() {
     if (resume) setPreviewResume(resume)
   }
 
-  const handleDownload = (id: string) => {
+  const handleDownload = async (id: string) => {
     const resume = resumes.find((r) => r.id === id)
-    if (resume?.pdfUrl) {
+    if (!resume?.pdfUrl) return
+
+    try {
+      // Fetch the PDF as a blob to bypass cross-origin download restrictions
+      const response = await fetch(resume.pdfUrl)
+      const blob = await response.blob()
+
+      // Create a blob URL and trigger download
+      const blobUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = resume.pdfUrl
+      a.href = blobUrl
       a.download = `${resume.title}.pdf`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
+
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.error('Failed to download PDF:', err)
+      // Fallback: open in new tab if fetch fails
+      window.open(resume.pdfUrl, '_blank')
     }
   }
 

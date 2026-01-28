@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { LoginModal } from './auth/LoginModal'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { useFormPersistence } from '@/hooks/useFormPersistence'
-import { useCreditRefresh } from '@/hooks/useCreditRefresh'
+import { useCredits } from '@/contexts/CreditContext'
 import { generateResume } from '@/services/resumeService'
 import { CreditWarningBanner } from './credits/CreditWarningBanner'
 
@@ -35,16 +35,9 @@ export function ResumeForm() {
   // Auth guard and form persistence hooks
   const authGuard = useAuthGuard()
   const { saveFormData, getFormData, clearFormData } = useFormPersistence()
-  const { refreshCredits } = useCreditRefresh()
 
-  // Optimistic credit state for immediate UI feedback
-  const [optimisticCredits, setOptimisticCredits] = useState<number | null>(null)
-
-  // Derive credit values from session with optimistic override
-  const sessionCredits = authGuard.session?.user?.credits ?? 0
-  const subscriptionStatus = authGuard.session?.user?.subscriptionStatus
-  const displayCredits = optimisticCredits !== null ? optimisticCredits : sessionCredits
-  const canGenerate = subscriptionStatus === 'premium' || displayCredits > 0
+  // Shared credit state (updates navbar instantly)
+  const { displayCredits, subscriptionStatus, canGenerate, decrementCredits, refreshCredits } = useCredits()
 
   useEffect(() => {
     const loadPdfJs = async () => {
@@ -220,16 +213,14 @@ export function ResumeForm() {
       return
     }
 
-    // Check credits (use current session value, not optimistic)
-    if (subscriptionStatus !== 'premium' && sessionCredits <= 0) {
+    // Check credits
+    if (!canGenerate) {
       setSubmitError('You have no credits remaining. Please upgrade your plan to continue.')
       return
     }
 
-    // Optimistic credit decrement for immediate UI feedback
-    if (subscriptionStatus !== 'premium') {
-      setOptimisticCredits(Math.max(0, sessionCredits - 1))
-    }
+    // Optimistic credit decrement for immediate UI feedback (updates navbar too)
+    decrementCredits()
 
     try {
       // Call the generate API
@@ -240,24 +231,21 @@ export function ResumeForm() {
       })
 
       if (response.success && response.data?.id) {
-        // Refresh session to sync credits with backend
+        // Refresh session to sync credits with backend (clears optimistic state)
         await refreshCredits()
-        setOptimisticCredits(null)
         // Clear form persistence data
         clearFormData()
         // Redirect to the editor
         router.push(`/editor/${response.data.id}`)
       } else {
-        // Revert optimistic update on failure
-        setOptimisticCredits(null)
-        await refreshCredits() // Re-sync with backend
+        // Revert optimistic update and re-sync with backend
+        await refreshCredits()
         setSubmitError(response.message || 'Failed to generate resume. Please try again.')
       }
     } catch (error: any) {
       console.error('Resume generation error:', error)
-      // Revert optimistic update on error
-      setOptimisticCredits(null)
-      await refreshCredits() // Re-sync with backend
+      // Revert optimistic update and re-sync with backend
+      await refreshCredits()
       setSubmitError(error.message || 'An unexpected error occurred. Please try again.')
     }
   }

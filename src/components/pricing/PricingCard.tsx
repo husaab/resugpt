@@ -18,6 +18,7 @@ interface PricingCardProps {
   billingPeriod: BillingPeriod
   onSelect: (tierId: string) => void
   isCurrentPlan?: boolean
+  disabled?: boolean
   className?: string
 }
 
@@ -26,6 +27,7 @@ export function PricingCard({
   billingPeriod,
   onSelect,
   isCurrentPlan,
+  disabled,
   className,
 }: PricingCardProps) {
   const isHighlighted = tier.highlighted
@@ -141,7 +143,7 @@ export function PricingCard({
         size="lg"
         className="w-full"
         onClick={() => onSelect(tier.id)}
-        disabled={isCurrentPlan}
+        disabled={isCurrentPlan || disabled}
       >
         {isCurrentPlan ? 'Current Plan' : tier.ctaText}
       </Button>

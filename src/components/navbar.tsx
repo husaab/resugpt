@@ -10,6 +10,7 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { SignOutModal } from './auth/SignOutModal'
 import { cn } from '@/lib/utils'
+import { useCredits } from '@/contexts/CreditContext'
 
 // Navigation link component with proper spacing and hover states
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -50,6 +51,7 @@ function NavDivider() {
 
 export function Navbar() {
   const { data: session } = useSession()
+  const { displayCredits, subscriptionStatus } = useCredits()
   const [scrolled, setScrolled] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [showSignOutModal, setShowSignOutModal] = useState(false)
@@ -139,15 +141,15 @@ export function Navbar() {
 
                     <NavDivider />
 
-                    {/* Credits badge */}
+                    {/* Credits badge - uses shared context for instant updates */}
                     <div className="px-2">
                       <Badge
                         variant={
-                          session.user.subscriptionStatus === 'premium'
+                          subscriptionStatus === 'premium'
                             ? 'primary'
-                            : session.user.credits === 0
+                            : displayCredits === 0
                             ? 'error'
-                            : session.user.credits <= 2
+                            : displayCredits <= 2
                             ? 'warning'
                             : 'primary'
                         }
@@ -160,9 +162,9 @@ export function Navbar() {
                         >
                           <path d="M12 2L13.09 8.26L20 9L14.18 12.74L16.18 20L12 16L7.82 20L9.82 12.74L4 9L10.91 8.26L12 2Z" />
                         </svg>
-                        {session.user.subscriptionStatus === 'premium'
+                        {subscriptionStatus === 'premium'
                           ? 'Unlimited'
-                          : `${session.user.credits} credit${session.user.credits !== 1 ? 's' : ''}`}
+                          : `${displayCredits} credit${displayCredits !== 1 ? 's' : ''}`}
                       </Badge>
                     </div>
 

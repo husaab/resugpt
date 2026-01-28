@@ -60,6 +60,7 @@ export interface Resume {
   title?: string;
   targetCompany?: string;
   targetRole?: string;
+  pdfPath?: string;
   createdAt: string;
   updatedAt: string;
 }

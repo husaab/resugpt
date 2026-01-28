@@ -35,11 +35,19 @@ export const generateResume = async (googleId: string, resumeData: any) => {
   });
 };
 
-// Generate cover letter (uses credits) 
+// Generate cover letter (uses credits)
 export const generateCoverLetter = async (googleId: string, coverLetterData: any) => {
   return apiClient('cover-letters/generate', {
     method: 'POST',
     body: { googleId, ...coverLetterData },
+  });
+};
+
+// Update Stripe customer ID (when they first subscribe)
+export const updateStripeCustomer = async (googleId: string, stripeCustomerId: string) => {
+  return apiClient(`users/${googleId}/stripe-customer`, {
+    method: 'PATCH',
+    body: { stripeCustomerId },
   });
 };
 

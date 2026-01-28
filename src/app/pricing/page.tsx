@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { BackgroundGradient } from '@/components/shared/background-gradient'
 import { StaggerContainer, StaggerItem } from '@/components/motion/stagger-container'
 import { FadeIn } from '@/components/motion/fade-in'
@@ -33,15 +33,27 @@ const CheckIcon = () => (
   </svg>
 )
 
-export default function PricingPage() {
+function PricingContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly')
   const [mounted, setMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Handle checkout cancelled - show message
+  useEffect(() => {
+    if (searchParams.get('checkout') === 'cancelled') {
+      setError('Checkout was cancelled. You can try again when ready.')
+      // Clear the URL param
+      router.replace('/pricing', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // Calculate savings for the Pro tier (most meaningful comparison)
   const proTier = PRICING_TIERS.find((t) => t.id === 'pro')
@@ -51,7 +63,7 @@ export default function PricingPage() {
   const currentTier =
     (session?.user?.subscriptionStatus as SubscriptionTier) || 'free'
 
-  const handleSelectPlan = (tierId: string) => {
+  const handleSelectPlan = useCallback(async (tierId: string) => {
     // If not logged in, redirect to auth
     if (!session) {
       router.push(`/auth?redirect=/pricing&tier=${tierId}`)
@@ -63,19 +75,42 @@ export default function PricingPage() {
       return
     }
 
-    // TODO: Integrate with Stripe checkout
-    // For now, log the selection
-    console.log('Plan selected:', {
-      tier: tierId,
-      billingPeriod,
-      userId: session.user?.googleId,
-    })
+    // Free tier doesn't need checkout
+    if (tierId === 'free') {
+      return
+    }
 
-    // Placeholder: Show alert (replace with Stripe checkout)
-    alert(
-      `Upgrade to ${tierId} (${billingPeriod}) - Stripe integration coming soon!`
-    )
-  }
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tier: tierId,
+          billingPeriod,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session')
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (err) {
+      console.error('Checkout error:', err)
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setIsLoading(false)
+    }
+  }, [session, currentTier, billingPeriod, router])
 
   return (
     <div className="min-h-screen pt-24 pb-16">
@@ -103,6 +138,33 @@ export default function PricingPage() {
             onChange={setBillingPeriod}
             savingsText={`Save ${formatPrice(annualSavings)} per year`}
           />
+
+          {/* Error Message */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-3 rounded-lg text-sm"
+              style={{
+                backgroundColor: 'var(--error-light)',
+                color: 'var(--error)',
+              }}
+            >
+              {error}
+            </motion.div>
+          )}
+
+          {/* Loading Overlay */}
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-4 text-sm"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Redirecting to checkout...
+            </motion.div>
+          )}
         </FadeIn>
 
         {/* Pricing Cards Grid */}
@@ -117,6 +179,7 @@ export default function PricingPage() {
                 billingPeriod={billingPeriod}
                 onSelect={handleSelectPlan}
                 isCurrentPlan={mounted && tier.id === currentTier}
+                disabled={isLoading}
               />
             </StaggerItem>
           ))}
@@ -160,5 +223,27 @@ export default function PricingPage() {
         </FadeIn>
       </div>
     </div>
+  )
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen pt-24 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="animate-pulse space-y-8 text-center">
+            <div className="h-12 w-96 mx-auto rounded-lg bg-[var(--bg-muted)]" />
+            <div className="h-6 w-64 mx-auto rounded-lg bg-[var(--bg-muted)]" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-96 rounded-2xl bg-[var(--bg-muted)]" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   )
 }

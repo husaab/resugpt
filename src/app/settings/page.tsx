@@ -1,19 +1,56 @@
 'use client'
 
+import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { BackgroundGradient } from '@/components/shared/background-gradient'
 
-export default function SettingsPage() {
-  const { data: session, status } = useSession()
+function SettingsContent() {
+  const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  // Handle checkout success - refresh session to get updated subscription
+  useEffect(() => {
+    if (searchParams.get('checkout') === 'success') {
+      setSuccessMessage('Successfully upgraded your subscription!')
+      // Refresh the session to get updated subscription status and credits
+      updateSession()
+      // Clear the URL param
+      router.replace('/settings', { scroll: false })
+    }
+  }, [searchParams, router, updateSession])
+
+  // Handle billing portal redirect
+  const handleManageBilling = useCallback(async () => {
+    setBillingLoading(true)
+    try {
+      const response = await fetch('/api/stripe/portal', {
+        method: 'POST',
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to open billing portal')
+      }
+
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      console.error('Billing portal error:', error)
+      setBillingLoading(false)
+    }
   }, [])
 
   // Redirect unauthenticated users
@@ -71,6 +108,42 @@ export default function SettingsPage() {
             Manage your account and preferences
           </p>
         </motion.div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl flex items-center gap-3"
+            style={{
+              backgroundColor: 'var(--success-light)',
+              color: 'var(--success)',
+            }}
+          >
+            <svg
+              className="w-5 h-5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span className="font-medium">{successMessage}</span>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="ml-auto p-1 hover:opacity-70 transition-opacity"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </motion.div>
+        )}
 
         <div className="space-y-6">
           {/* Profile Section */}
@@ -252,17 +325,34 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </div>
-                {subscriptionStatus === 'free' && (
-                  <Link href="/pricing">
+                <div className="flex items-center gap-2">
+                  {subscriptionStatus !== 'free' && (
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 rounded-xl font-medium text-sm cursor-pointer bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                      onClick={handleManageBilling}
+                      disabled={billingLoading}
+                      className="px-4 py-2 rounded-xl font-medium text-sm cursor-pointer border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        borderColor: 'var(--border-color)',
+                        color: 'var(--text-primary)',
+                      }}
                     >
-                      Upgrade
+                      {billingLoading ? 'Loading...' : 'Manage Billing'}
                     </motion.button>
-                  </Link>
-                )}
+                  )}
+                  {subscriptionStatus === 'free' && (
+                    <Link href="/pricing">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="px-4 py-2 rounded-xl font-medium text-sm cursor-pointer bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                      >
+                        Upgrade
+                      </motion.button>
+                    </Link>
+                  )}
+                </div>
               </div>
 
               {/* Credits */}
@@ -485,5 +575,23 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen pt-24 pb-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 w-48 rounded-lg bg-[var(--bg-muted)]" />
+            <div className="h-64 rounded-2xl bg-[var(--bg-muted)]" />
+            <div className="h-48 rounded-2xl bg-[var(--bg-muted)]" />
+          </div>
+        </div>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   )
 }
