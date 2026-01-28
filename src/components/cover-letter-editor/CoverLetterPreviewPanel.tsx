@@ -56,7 +56,7 @@ export function CoverLetterPreviewPanel({
 
         {pdfUrl ? (
           <iframe
-            src={pdfUrl}
+            src={`${pdfUrl}#pagemode=none`}
             className="w-full h-full border-0"
             title="Cover Letter PDF Preview"
           />

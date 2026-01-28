@@ -57,7 +57,7 @@ export function PreviewPanel({
 
         {pdfUrl ? (
           <iframe
-            src={pdfUrl}
+            src={`${pdfUrl}#pagemode=none`}
             className="w-full h-full border-0"
             title="Resume PDF Preview"
           />
