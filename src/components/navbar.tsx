@@ -208,6 +208,10 @@ export function Navbar() {
                     transition={{ duration: 0.2 }}
                     className="flex items-center gap-3"
                   >
+                    <nav className="hidden sm:flex items-center gap-1">
+                      <NavLink href="/cover-letter">Cover Letter</NavLink>
+                    </nav>
+                    <NavDivider />
                     <ThemeSwitch />
                     <NavDivider />
                     <Link href="/auth">
