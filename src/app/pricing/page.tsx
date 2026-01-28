@@ -197,6 +197,7 @@ function PricingContent() {
                 billingPeriod={billingPeriod}
                 onSelect={handleSelectPlan}
                 isCurrentPlan={mounted && tier.id === currentTier}
+                currentTier={mounted ? currentTier : undefined}
                 disabled={isLoading}
               />
             </StaggerItem>

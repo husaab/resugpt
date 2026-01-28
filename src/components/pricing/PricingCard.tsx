@@ -17,6 +17,7 @@ interface PricingCardProps {
   billingPeriod: BillingPeriod
   onSelect: (tierId: string) => void
   isCurrentPlan?: boolean
+  currentTier?: string
   disabled?: boolean
   className?: string
 }
@@ -26,11 +27,15 @@ export function PricingCard({
   billingPeriod,
   onSelect,
   isCurrentPlan,
+  currentTier,
   disabled,
   className,
 }: PricingCardProps) {
   const isHighlighted = tier.highlighted
   const isFreeTier = tier.monthlyPrice === 0
+
+  // Check if this is a lower tier than the user's current plan
+  const isLowerTier = tier.id === 'free' && (currentTier === 'pro' || currentTier === 'premium')
 
   return (
     <motion.div
@@ -142,9 +147,9 @@ export function PricingCard({
         size="lg"
         className="w-full"
         onClick={() => onSelect(tier.id)}
-        disabled={isCurrentPlan || disabled}
+        disabled={isCurrentPlan || isLowerTier || disabled}
       >
-        {isCurrentPlan ? 'Current Plan' : tier.ctaText}
+        {isCurrentPlan ? 'Current Plan' : isLowerTier ? 'Free Features' : tier.ctaText}
       </Button>
     </motion.div>
   )
