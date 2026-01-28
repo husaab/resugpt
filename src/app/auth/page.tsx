@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import { BackgroundIcons } from '../../components/background-icons'
 import { popupCenter } from '../../utils/popupCenter'
 import { useRouter } from 'next/navigation'
@@ -8,7 +9,7 @@ import { useEffect } from 'react'
 
 export default function AuthPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
 
   // Redirect authenticated users to homepage
   useEffect(() => {
@@ -19,7 +20,7 @@ export default function AuthPage() {
 
   const handleGoogleLogin = () => {
     const popup = popupCenter('/google-signin', 'Sign in with Google')
-    
+
     // Listen for popup to close
     const checkClosed = setInterval(() => {
       if (popup?.closed) {
@@ -31,25 +32,65 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="h-screen flex items-center overflow-hidden pt-16">
+    <div className="min-h-screen flex items-center justify-center overflow-hidden pt-16 pb-24">
       <BackgroundIcons />
-      <div 
-        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
-        className="max-w-md w-full mx-auto border rounded-lg p-8 transition-colors mb-40"
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          borderColor: 'var(--border-color)'
+        }}
+        className="max-w-md w-full mx-4 border rounded-2xl p-8 md:p-10 shadow-[var(--shadow-md)]"
       >
+        {/* Logo & Header */}
         <div className="text-center mb-8">
-          <h1 style={{ color: 'var(--accent-color)' }} className="text-3xl font-bold mb-2">
-            ResuGPT
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.1, duration: 0.3 }}
+            className="inline-flex items-center gap-2 mb-4"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[var(--accent-color)] flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+          </motion.div>
+
+          <h1
+            className="text-2xl md:text-3xl font-bold mb-2"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Welcome to <span style={{ color: 'var(--accent-color)' }}>ResuGPT</span>
           </h1>
-          <p style={{ color: 'var(--text-primary)' }} className="opacity-75">
+          <p
+            className="text-base"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             Sign in to create perfect resumes with AI
           </p>
         </div>
 
+        {/* Auth Buttons */}
         <div className="space-y-4">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             onClick={handleGoogleLogin}
-            className="cursor-pointer w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors"
+            className="cursor-pointer w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-5 py-3.5 rounded-xl font-medium transition-all shadow-sm hover:shadow-md"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -58,27 +99,36 @@ export default function AuthPage() {
               <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             Continue with Google
-          </button>
+          </motion.button>
 
-          <div className="relative">
-
-            <div className="relative flex justify-center text-sm">
-              <span style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }} className="px-2 opacity-60">
-                Quick & secure authentication
-              </span>
-            </div>
-          </div>
-
-          <div style={{ color: 'var(--text-primary)' }} className="text-center text-sm opacity-75">
-            <p>
-              By continuing, you agree to our{' '}
-              <a href="#" className="underline hover:opacity-100">Terms of Service</a>
-              {' '}and{' '}
-              <a href="#" className="underline hover:opacity-100">Privacy Policy</a>
-            </p>
-          </div>
+          
         </div>
-      </div>
+
+        {/* Footer */}
+        <div
+          className="text-center text-xs mt-6 leading-relaxed"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          <p>
+            By continuing, you agree to our{' '}
+            <a
+              href="#"
+              className="underline hover:opacity-80 transition-opacity"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Terms of Service
+            </a>
+            {' '}and{' '}
+            <a
+              href="#"
+              className="underline hover:opacity-80 transition-opacity"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Privacy Policy
+            </a>
+          </p>
+        </div>
+      </motion.div>
     </div>
   )
 }

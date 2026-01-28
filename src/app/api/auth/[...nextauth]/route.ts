@@ -18,16 +18,16 @@ const authOption: NextAuthOptions = {
         })
     ],
     callbacks: {
-        async jwt({ token, account, user }) {
+        async jwt({ token, account, user, trigger }) {
+            // Initial Google login
             if (account?.provider === 'google') {
                 try {
-                    // Fetch user data from backend on first login
                     const response = await login({
                         email: user.email!,
                         name: user.name!,
                         sub: account.providerAccountId
                     })
-                    
+
                     token.googleId = account.providerAccountId
                     token.credits = response.data.credits
                     token.subscriptionStatus = response.data.subscriptionStatus
@@ -35,6 +35,22 @@ const authOption: NextAuthOptions = {
                     console.error('JWT callback error:', error)
                 }
             }
+
+            // Session update triggered - refetch user data from backend
+            if (trigger === 'update' && token.googleId) {
+                try {
+                    const response = await login({
+                        email: token.email!,
+                        name: token.name!,
+                        sub: token.googleId as string
+                    })
+                    token.credits = response.data.credits
+                    token.subscriptionStatus = response.data.subscriptionStatus
+                } catch (error) {
+                    console.error('Session update error:', error)
+                }
+            }
+
             return token
         },
         async session({ session, token }) {

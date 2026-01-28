@@ -8,44 +8,141 @@
 }
 
 :root {
+  /* Backgrounds */
   --bg-body: #ffffff;
-  --text-primary: #000000;
-  --bg-card: #f9fafb;
-  --border-color: #e5e7eb;
+  --bg-card: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f5f5f5;
+
+  /* Text colors */
+  --text-primary: #0a0a0a;
+  --text-secondary: #525252;
+  --text-tertiary: #a3a3a3;
+  --text-inverse: #ffffff;
+
+  /* Border colors */
+  --border-color: #e5e5e5;
+  --border-hover: #d4d4d4;
+  --border-focus: #005b96;
+
+  /* Accent/Brand colors */
   --accent-color: #005b96;
+  --accent-hover: #004578;
+  --accent-light: #e8f4fc;
+  --accent-lighter: #f0f8ff;
+
+  /* State colors */
+  --success: #22c55e;
+  --success-light: #dcfce7;
+  --error: #ef4444;
+  --error-light: #fef2f2;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .dark {
-  --bg-body: #000000;
-  --text-primary: #ffffff;
-  --bg-card: #111827;
-  --border-color: #374151;
+  /* Backgrounds */
+  --bg-body: #0a0a0a;
+  --bg-card: #141414;
+  --bg-elevated: #1a1a1a;
+  --bg-muted: #1f1f1f;
+
+  /* Text colors */
+  --text-primary: #fafafa;
+  --text-secondary: #a3a3a3;
+  --text-tertiary: #525252;
+  --text-inverse: #0a0a0a;
+
+  /* Border colors */
+  --border-color: #262626;
+  --border-hover: #404040;
+  --border-focus: #60a5fa;
+
+  /* Accent/Brand colors */
   --accent-color: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-light: #1e3a5f;
+  --accent-lighter: #172554;
+
+  /* State colors */
+  --success: #4ade80;
+  --success-light: #166534;
+  --error: #f87171;
+  --error-light: #7f1d1d;
+  --warning: #fbbf24;
+  --warning-light: #78350f;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 body {
   background-color: var(--bg-body);
   color: var(--text-primary);
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Placeholder styling for both light and dark modes */
-::placeholder {
+/* Selection color */
+::selection {
+  background-color: var(--accent-light);
   color: var(--text-primary);
-  opacity: 0.6;
+}
+
+/* Placeholder styling */
+::placeholder {
+  color: var(--text-tertiary);
 }
 
 ::-webkit-input-placeholder {
-  color: var(--text-primary);
-  opacity: 0.6;
+  color: var(--text-tertiary);
 }
 
 ::-moz-placeholder {
-  color: var(--text-primary);
-  opacity: 0.6;
+  color: var(--text-tertiary);
 }
 
 :-ms-input-placeholder {
-  color: var(--text-primary);
-  opacity: 0.6;
+  color: var(--text-tertiary);
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* Focus visible styles */
+*:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shift from scrollbar */
+html {
+  overflow-y: scroll;
 }
