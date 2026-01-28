@@ -22,27 +22,29 @@ export function PreviewPanel({
   return (
     <div className="h-full flex flex-col bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-color)] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-muted)]">
-        <h3 className="font-semibold text-[var(--text-primary)]">Preview</h3>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-muted)]">
+        <h3 className="font-semibold text-[var(--text-primary)] text-sm sm:text-base">Preview</h3>
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Button
             variant="secondary"
             size="sm"
             onClick={onCompile}
             isLoading={isCompiling}
             disabled={isCompiling}
+            className="!px-2 sm:!px-4"
           >
             <ArrowPathIcon className="w-4 h-4" />
-            {isCompiling ? 'Compiling...' : 'Compile PDF'}
+            <span className="hidden sm:inline">{isCompiling ? 'Compiling...' : 'Compile PDF'}</span>
           </Button>
           <Button
             variant="primary"
             size="sm"
             onClick={onDownload}
             disabled={!pdfUrl || isCompiling}
+            className="!px-2 sm:!px-4"
           >
             <ArrowDownTrayIcon className="w-4 h-4" />
-            Download
+            <span className="hidden sm:inline">Download</span>
           </Button>
         </div>
       </div>

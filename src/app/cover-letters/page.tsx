@@ -149,22 +149,22 @@ export default function CoverLettersPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex items-center justify-between mb-8"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
         >
           <div>
             <h1
-              className="text-3xl font-bold mb-2"
+              className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2"
               style={{ color: 'var(--text-primary)' }}
             >
               Cover Letters
             </h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
               Manage your generated cover letters
             </p>
           </div>
 
-          <Link href="/cover-letter">
-            <Button variant="primary" size="md">
+          <Link href="/cover-letter" className="shrink-0">
+            <Button variant="primary" size="md" className="w-full sm:w-auto justify-center">
               <PlusIcon className="w-5 h-5" />
               New Cover Letter
             </Button>
@@ -190,50 +190,51 @@ export default function CoverLettersPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="rounded-2xl border p-12 text-center"
+            className="rounded-xl sm:rounded-2xl border p-8 sm:p-12 text-center"
             style={{
               backgroundColor: 'var(--bg-elevated)',
               borderColor: 'var(--border-color)',
             }}
           >
             <DocumentTextIcon
-              className="w-16 h-16 mx-auto mb-4"
+              className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4"
               style={{ color: 'var(--text-tertiary)' }}
             />
             <h3
-              className="text-lg font-semibold mb-2"
+              className="text-base sm:text-lg font-semibold mb-2"
               style={{ color: 'var(--text-primary)' }}
             >
               No cover letters yet
             </h3>
             <p
-              className="text-sm mb-6"
+              className="text-sm mb-5 sm:mb-6 max-w-xs mx-auto"
               style={{ color: 'var(--text-secondary)' }}
             >
               Create your first AI-generated cover letter to get started
             </p>
             <Link href="/cover-letter">
-              <Button variant="primary" size="md">
+              <Button variant="primary" size="md" className="w-full sm:w-auto justify-center">
                 <PlusIcon className="w-5 h-5" />
                 Create Cover Letter
               </Button>
             </Link>
           </motion.div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {coverLetters.map((coverLetter, index) => (
               <motion.div
                 key={coverLetter.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="rounded-2xl border p-6"
+                className="rounded-xl sm:rounded-2xl border p-4 sm:p-6"
                 style={{
                   backgroundColor: 'var(--bg-elevated)',
                   borderColor: 'var(--border-color)',
                 }}
               >
-                <div className="flex items-center justify-between">
+                {/* Desktop layout */}
+                <div className="hidden sm:flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <h3
                       className="text-lg font-semibold truncate"
@@ -285,6 +286,75 @@ export default function CoverLettersPage() {
                       onClick={() => handleDelete(coverLetter.id)}
                       disabled={deletingId === coverLetter.id}
                       className="text-[var(--error)] hover:bg-[var(--error-light)]"
+                    >
+                      {deletingId === coverLetter.id ? (
+                        <div className="w-4 h-4 border-2 border-[var(--error)] border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <TrashIcon className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Mobile layout */}
+                <div className="sm:hidden">
+                  {/* Title and metadata */}
+                  <div className="mb-3">
+                    <h3
+                      className="text-base font-semibold line-clamp-2"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {coverLetter.jobTitle}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                      {coverLetter.companyName && (
+                        <span
+                          className="text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {coverLetter.companyName}
+                        </span>
+                      )}
+                      {coverLetter.companyName && (
+                        <span className="text-[var(--text-tertiary)]">•</span>
+                      )}
+                      <span
+                        className="text-xs"
+                        style={{ color: 'var(--text-tertiary)' }}
+                      >
+                        {formatDate(coverLetter.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    <Link href={`/cover-letter-editor/${coverLetter.id}`} className="flex-1">
+                      <Button variant="secondary" size="sm" className="w-full justify-center">
+                        <PencilIcon className="w-4 h-4" />
+                        Edit
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleDownload(coverLetter.id, coverLetter.jobTitle, coverLetter.companyName)}
+                      disabled={downloadingId === coverLetter.id}
+                      className="flex-1 justify-center"
+                    >
+                      {downloadingId === coverLetter.id ? (
+                        <div className="w-4 h-4 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <ArrowDownTrayIcon className="w-4 h-4" />
+                      )}
+                      <span>Download</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(coverLetter.id)}
+                      disabled={deletingId === coverLetter.id}
+                      className="text-[var(--error)] hover:bg-[var(--error-light)] !px-2.5"
                     >
                       {deletingId === coverLetter.id ? (
                         <div className="w-4 h-4 border-2 border-[var(--error)] border-t-transparent rounded-full animate-spin" />

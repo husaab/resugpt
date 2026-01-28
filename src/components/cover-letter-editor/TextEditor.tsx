@@ -30,13 +30,13 @@ export function TextEditor({ content, onChange }: TextEditorProps) {
 
   return (
     <div className="h-full flex flex-col border border-[var(--border-color)] rounded-xl overflow-hidden">
-      <div className="px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-muted)] flex items-center justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">
-          Edit your cover letter below
+      <div className="px-3 sm:px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-muted)] flex items-center justify-between gap-2">
+        <p className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
+          Edit your cover letter
         </p>
-        <div className="flex items-center gap-4 text-xs text-[var(--text-tertiary)]">
+        <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-[var(--text-tertiary)] shrink-0">
           <span>{wordCount} words</span>
-          <span>{charCount} characters</span>
+          <span className="hidden xs:inline">{charCount} chars</span>
         </div>
       </div>
 
@@ -45,10 +45,10 @@ export function TextEditor({ content, onChange }: TextEditorProps) {
           ref={textareaRef}
           value={content}
           onChange={handleChange}
-          className="w-full min-h-full p-4 text-base bg-[var(--bg-body)] text-[var(--text-primary)] resize-none focus:outline-none border-0 leading-relaxed"
+          className="w-full min-h-full p-3 sm:p-4 text-sm sm:text-base bg-[var(--bg-body)] text-[var(--text-primary)] resize-none focus:outline-none border-0 leading-relaxed"
           spellCheck={true}
           placeholder="Your cover letter will appear here after generation..."
-          style={{ minHeight: '400px' }}
+          style={{ minHeight: '300px' }}
         />
       </div>
     </div>

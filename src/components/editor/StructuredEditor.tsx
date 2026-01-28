@@ -125,8 +125,8 @@ export function StructuredEditor({ resumeData, onChange }: StructuredEditorProps
     <div className="space-y-4">
       {/* Header Section */}
       <SectionAccordion title="Header">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="sm:col-span-2">
             <InputField
               label="Full Name"
               value={resumeData.header?.name || ''}
@@ -159,7 +159,7 @@ export function StructuredEditor({ resumeData, onChange }: StructuredEditorProps
             onChange={(v) => updateHeader('github', v)}
             placeholder="github.com/johndoe"
           />
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <InputField
               label="Website (optional)"
               value={resumeData.header?.website || ''}
@@ -173,17 +173,17 @@ export function StructuredEditor({ resumeData, onChange }: StructuredEditorProps
       {/* Education Section */}
       <SectionAccordion title="Education">
         {resumeData.education?.map((edu, index) => (
-          <div key={index} className="p-4 border border-[var(--border-color)] rounded-lg space-y-4 relative group">
+          <div key={index} className="p-3 sm:p-4 border border-[var(--border-color)] rounded-lg space-y-3 sm:space-y-4 relative group">
             <button
               type="button"
               onClick={() => removeEducation(index)}
-              className="absolute top-2 right-2 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-light)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              className="absolute top-2 right-2 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-light)] rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
               title="Remove education"
             >
               <TrashIcon className="w-4 h-4" />
             </button>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pr-8 sm:pr-0">
               <InputField
                 label="School"
                 value={edu.school}
@@ -236,17 +236,17 @@ export function StructuredEditor({ resumeData, onChange }: StructuredEditorProps
       {/* Experience Section */}
       <SectionAccordion title="Experience">
         {resumeData.experience?.map((exp, index) => (
-          <div key={index} className="p-4 border border-[var(--border-color)] rounded-lg space-y-4 relative group">
+          <div key={index} className="p-3 sm:p-4 border border-[var(--border-color)] rounded-lg space-y-3 sm:space-y-4 relative group">
             <button
               type="button"
               onClick={() => removeExperience(index)}
-              className="absolute top-2 right-2 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-light)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              className="absolute top-2 right-2 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-light)] rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
               title="Remove experience"
             >
               <TrashIcon className="w-4 h-4" />
             </button>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pr-8 sm:pr-0">
               <InputField
                 label="Title"
                 value={exp.title}
@@ -299,17 +299,17 @@ export function StructuredEditor({ resumeData, onChange }: StructuredEditorProps
       {/* Projects Section */}
       <SectionAccordion title="Projects">
         {resumeData.projects?.map((project, index) => (
-          <div key={index} className="p-4 border border-[var(--border-color)] rounded-lg space-y-4 relative group">
+          <div key={index} className="p-3 sm:p-4 border border-[var(--border-color)] rounded-lg space-y-3 sm:space-y-4 relative group">
             <button
               type="button"
               onClick={() => removeProject(index)}
-              className="absolute top-2 right-2 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-light)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              className="absolute top-2 right-2 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-light)] rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
               title="Remove project"
             >
               <TrashIcon className="w-4 h-4" />
             </button>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pr-8 sm:pr-0">
               <InputField
                 label="Project Name"
                 value={project.name}
@@ -322,7 +322,7 @@ export function StructuredEditor({ resumeData, onChange }: StructuredEditorProps
                 onChange={(v) => updateProject(index, 'date', v)}
                 placeholder="September 2024"
               />
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <InputField
                   label="Technologies"
                   value={project.technologies}

@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { motion } from 'framer-motion'
-import { ArrowLeftIcon, BookmarkIcon, CodeBracketIcon, Squares2X2Icon } from '@heroicons/react/24/outline'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeftIcon, BookmarkIcon, CodeBracketIcon, Squares2X2Icon, DocumentTextIcon, EyeIcon, ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { StructuredEditor, PreviewPanel, AdvancedEditor } from '@/components/editor'
 import { getResume, saveResume, compileResume } from '@/services/resumeService'
@@ -12,6 +12,7 @@ import { ResumeData } from '@/types/resume'
 import { cn } from '@/lib/utils'
 
 type EditorMode = 'structured' | 'advanced'
+type MobileView = 'editor' | 'preview'
 
 // Function to generate LaTeX from resume data (client-side mirror of backend)
 function generateLatexFromData(data: ResumeData): string {
@@ -46,6 +47,9 @@ export default function EditorPage() {
   // Track if we've already auto-compiled and if resume needs thumbnail generation
   const [hasAutoCompiled, setHasAutoCompiled] = useState(false)
   const [needsThumbnail, setNeedsThumbnail] = useState(false)
+
+  // Mobile view state - default to preview so users see their resume first
+  const [mobileView, setMobileView] = useState<MobileView>('preview')
 
   // Load resume data
   useEffect(() => {
@@ -265,7 +269,8 @@ export default function EditorPage() {
     <div className="min-h-screen pt-16 bg-[var(--bg-body)] flex flex-col">
       {/* Header */}
       <header className="sticky top-16 z-40 border-b border-[var(--border-color)] bg-[var(--bg-elevated)]">
-        <div className="flex items-center justify-between px-4 py-3">
+        {/* Desktop header */}
+        <div className="hidden md:flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -330,6 +335,101 @@ export default function EditorPage() {
           </div>
         </div>
 
+        {/* Mobile header */}
+        <div className="md:hidden">
+          {/* Top row: Back, title, save */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                className="shrink-0 !px-2"
+              >
+                <ArrowLeftIcon className="w-4 h-4" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <h1 className="font-semibold text-[var(--text-primary)] truncate text-sm">
+                  {title}
+                </h1>
+                {hasUnsavedChanges && (
+                  <span className="text-[10px] text-[var(--text-tertiary)]">Unsaved changes</span>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSave}
+              isLoading={isSaving}
+              disabled={isSaving || !hasUnsavedChanges}
+              className="shrink-0 !px-3"
+            >
+              <BookmarkIcon className="w-4 h-4" />
+              <span className="hidden xs:inline">{isSaving ? 'Saving...' : 'Save'}</span>
+            </Button>
+          </div>
+
+          {/* Bottom row: Mode toggle + View toggle */}
+          <div className="flex items-center justify-between px-3 pb-2 gap-2">
+            {/* Editor mode toggle (compact) */}
+            <div className="flex items-center bg-[var(--bg-muted)] rounded-lg p-0.5">
+              <button
+                onClick={() => setEditorMode('structured')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
+                  editorMode === 'structured'
+                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                    : 'text-[var(--text-secondary)]'
+                )}
+              >
+                <Squares2X2Icon className="w-3.5 h-3.5" />
+                Form
+              </button>
+              <button
+                onClick={() => setEditorMode('advanced')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
+                  editorMode === 'advanced'
+                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                    : 'text-[var(--text-secondary)]'
+                )}
+              >
+                <CodeBracketIcon className="w-3.5 h-3.5" />
+                LaTeX
+              </button>
+            </div>
+
+            {/* Mobile view toggle */}
+            <div className="flex items-center bg-[var(--bg-muted)] rounded-lg p-0.5">
+              <button
+                onClick={() => setMobileView('editor')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
+                  mobileView === 'editor'
+                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                    : 'text-[var(--text-secondary)]'
+                )}
+              >
+                <DocumentTextIcon className="w-3.5 h-3.5" />
+                Edit
+              </button>
+              <button
+                onClick={() => setMobileView('preview')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
+                  mobileView === 'preview'
+                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                    : 'text-[var(--text-secondary)]'
+                )}
+              >
+                <EyeIcon className="w-3.5 h-3.5" />
+                Preview
+              </button>
+            </div>
+          </div>
+        </div>
+
         {error && (
           <div className="px-4 py-2 bg-[var(--error-light)] border-t border-[var(--error)]">
             <p className="text-sm text-[var(--error)]">{error}</p>
@@ -337,8 +437,8 @@ export default function EditorPage() {
         )}
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Content - Desktop */}
+      <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Editor Panel - scrollable */}
         <div className="w-1/2 h-[calc(100vh-120px)] border-r border-[var(--border-color)] overflow-y-auto">
           <div className="p-4">
@@ -365,6 +465,87 @@ export default function EditorPage() {
             onDownload={handleDownload}
             error={compileError}
           />
+        </div>
+      </div>
+
+      {/* Main Content - Mobile */}
+      <div className="md:hidden">
+        <AnimatePresence mode="wait">
+          {mobileView === 'editor' ? (
+            <motion.div
+              key="editor"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="h-[calc(100vh-152px)] overflow-y-auto"
+            >
+              <div className="p-3 pb-24">
+                {editorMode === 'structured' && resumeData ? (
+                  <StructuredEditor
+                    resumeData={resumeData}
+                    onChange={handleResumeDataChange}
+                  />
+                ) : (
+                  <AdvancedEditor
+                    latex={latex}
+                    onChange={handleLatexChange}
+                  />
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="preview"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+              className="h-[calc(100vh-152px)] p-3 pb-20"
+            >
+              <div className="h-full">
+                <PreviewPanel
+                  pdfUrl={pdfUrl}
+                  isCompiling={isCompiling}
+                  onCompile={handleCompile}
+                  onDownload={handleDownload}
+                  error={compileError}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile floating action buttons */}
+        <div className="fixed bottom-4 left-0 right-0 flex justify-center gap-3 z-50 px-4">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleCompile}
+            disabled={isCompiling}
+            className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-colors',
+              'bg-[var(--bg-elevated)] border border-[var(--border-color)]',
+              'text-[var(--text-primary)]',
+              isCompiling && 'opacity-70'
+            )}
+          >
+            <ArrowPathIcon className={cn('w-5 h-5', isCompiling && 'animate-spin')} />
+            <span className="text-sm font-medium">{isCompiling ? 'Compiling...' : 'Compile'}</span>
+          </motion.button>
+
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleDownload}
+            disabled={!pdfUrl || isCompiling}
+            className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-colors',
+              'bg-[var(--accent-color)] text-white',
+              (!pdfUrl || isCompiling) && 'opacity-50'
+            )}
+          >
+            <ArrowDownTrayIcon className="w-5 h-5" />
+            <span className="text-sm font-medium">Download</span>
+          </motion.button>
         </div>
       </div>
     </div>

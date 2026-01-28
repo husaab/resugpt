@@ -401,28 +401,34 @@ export function Navbar() {
                 <nav className="p-4 space-y-1">
                   {mounted && session?.user ? (
                     <>
-                      <MobileNavLink href="/cover-letter" onClick={() => setMobileMenuOpen(false)} index={0}>
-                        Cover Letter
+                      <MobileNavLink href="/" onClick={() => setMobileMenuOpen(false)} index={0}>
+                        Resume
                       </MobileNavLink>
-                      <MobileNavLink href="/cover-letters" onClick={() => setMobileMenuOpen(false)} index={1}>
-                        My Letters
-                      </MobileNavLink>
-                      <MobileNavLink href="/resumes" onClick={() => setMobileMenuOpen(false)} index={2}>
+                      <MobileNavLink href="/resumes" onClick={() => setMobileMenuOpen(false)} index={1}>
                         My Resumes
                       </MobileNavLink>
-                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={3}>
+                      <MobileNavLink href="/cover-letter" onClick={() => setMobileMenuOpen(false)} index={2}>
+                        Cover Letter
+                      </MobileNavLink>
+                      <MobileNavLink href="/cover-letters" onClick={() => setMobileMenuOpen(false)} index={3}>
+                        My Cover Letters
+                      </MobileNavLink>
+                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={4}>
                         Pricing
                       </MobileNavLink>
-                      <MobileNavLink href="/settings" onClick={() => setMobileMenuOpen(false)} index={4}>
+                      <MobileNavLink href="/settings" onClick={() => setMobileMenuOpen(false)} index={5}>
                         Settings
                       </MobileNavLink>
                     </>
                   ) : mounted ? (
                     <>
-                      <MobileNavLink href="/cover-letter" onClick={() => setMobileMenuOpen(false)} index={0}>
+                      <MobileNavLink href="/" onClick={() => setMobileMenuOpen(false)} index={0}>
+                        Resume
+                      </MobileNavLink>
+                      <MobileNavLink href="/cover-letter" onClick={() => setMobileMenuOpen(false)} index={1}>
                         Cover Letter
                       </MobileNavLink>
-                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={1}>
+                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={2}>
                         Pricing
                       </MobileNavLink>
                     </>
