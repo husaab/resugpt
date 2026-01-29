@@ -82,7 +82,7 @@ export function PdfPreviewModal({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="md:hidden fixed inset-x-0 bottom-0 z-50 flex flex-col bg-[var(--bg-elevated)] rounded-t-2xl overflow-hidden shadow-2xl max-h-[85vh]"
+            className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-[var(--bg-elevated)] rounded-t-2xl overflow-hidden shadow-2xl"
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
@@ -108,8 +108,8 @@ export function PdfPreviewModal({
               </div>
             </div>
 
-            {/* PDF Viewer */}
-            <div className="flex-1 bg-[var(--bg-muted)] min-h-[60vh]">
+            {/* PDF Viewer - fixed height for mobile */}
+            <div className="h-[70vh] bg-[var(--bg-muted)]">
               {pdfUrl ? (
                 <iframe
                   src={pdfUrl}
