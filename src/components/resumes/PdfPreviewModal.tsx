@@ -32,12 +32,12 @@ export function PdfPreviewModal({
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
           />
 
-          {/* Modal */}
+          {/* Desktop Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-4 md:inset-8 z-50 flex flex-col bg-[var(--bg-elevated)] rounded-2xl overflow-hidden shadow-2xl"
+            className="hidden md:flex fixed inset-8 lg:inset-16 z-50 flex-col bg-[var(--bg-elevated)] rounded-2xl overflow-hidden shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
@@ -60,6 +60,56 @@ export function PdfPreviewModal({
 
             {/* PDF Viewer */}
             <div className="flex-1 bg-[var(--bg-muted)]">
+              {pdfUrl ? (
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-full"
+                  title={title}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <p className="text-[var(--text-secondary)]">
+                    PDF not available
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Mobile Bottom Sheet */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="md:hidden fixed inset-x-0 bottom-0 z-50 flex flex-col bg-[var(--bg-elevated)] rounded-t-2xl overflow-hidden shadow-2xl max-h-[85vh]"
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-[var(--border-color)]" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-color)]">
+              <h2 className="font-semibold text-[var(--text-primary)] truncate text-sm flex-1 mr-2">
+                {title}
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" size="sm" onClick={onDownload} className="!px-3">
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  <span className="hidden xs:inline">Download</span>
+                </Button>
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors"
+                >
+                  <XMarkIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Viewer */}
+            <div className="flex-1 bg-[var(--bg-muted)] min-h-[60vh]">
               {pdfUrl ? (
                 <iframe
                   src={pdfUrl}
