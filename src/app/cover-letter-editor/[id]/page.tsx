@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { TextEditor, CoverLetterPreviewPanel } from '@/components/cover-letter-editor'
 import { getCoverLetter, saveCoverLetter, compileCoverLetter } from '@/services/coverLetterService'
 import { cn } from '@/lib/utils'
+import { downloadPDF } from '@/lib/downloadUtils'
 
 type MobileView = 'editor' | 'preview'
 
@@ -134,17 +135,10 @@ export default function CoverLetterEditorPage() {
   // Download PDF
   const handleDownload = () => {
     if (!pdfUrl) return
-
     const fileName = companyName
       ? `Cover Letter - ${companyName} - ${jobTitle}.pdf`
       : `Cover Letter - ${jobTitle}.pdf`
-
-    const a = document.createElement('a')
-    a.href = pdfUrl
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    downloadPDF(pdfUrl, fileName)
   }
 
   // Cleanup PDF URL on unmount

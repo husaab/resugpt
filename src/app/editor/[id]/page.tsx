@@ -10,6 +10,7 @@ import { StructuredEditor, PreviewPanel, AdvancedEditor } from '@/components/edi
 import { getResume, saveResume, compileResume } from '@/services/resumeService'
 import { ResumeData } from '@/types/resume'
 import { cn } from '@/lib/utils'
+import { downloadPDF } from '@/lib/downloadUtils'
 
 type EditorMode = 'structured' | 'advanced'
 type MobileView = 'editor' | 'preview'
@@ -199,13 +200,7 @@ export default function EditorPage() {
   // Download PDF
   const handleDownload = () => {
     if (!pdfUrl) return
-
-    const a = document.createElement('a')
-    a.href = pdfUrl
-    a.download = `${title || 'resume'}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    downloadPDF(pdfUrl, `${title || 'resume'}.pdf`)
   }
 
   // Cleanup PDF URL on unmount

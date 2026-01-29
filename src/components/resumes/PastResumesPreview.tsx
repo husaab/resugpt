@@ -8,6 +8,7 @@ import { ArrowRightIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
 import { ResumeGrid, PdfPreviewModal, DeleteConfirmModal } from '@/components/resumes'
 import { listResumes, deleteResume } from '@/services/resumeService'
 import { ResumeListItem } from '@/types/resume'
+import { downloadPDF } from '@/lib/downloadUtils'
 
 export function PastResumesPreview() {
   const { data: session } = useSession()
@@ -51,25 +52,9 @@ export function PastResumesPreview() {
     if (!resume?.pdfUrl) return
 
     try {
-      // Fetch the PDF as a blob to bypass cross-origin download restrictions
-      const response = await fetch(resume.pdfUrl)
-      const blob = await response.blob()
-
-      // Create a blob URL and trigger download
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = `${resume.title}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-
-      // Clean up the blob URL
-      URL.revokeObjectURL(blobUrl)
+      await downloadPDF(resume.pdfUrl, `${resume.title}.pdf`)
     } catch (err) {
       console.error('Failed to download PDF:', err)
-      // Fallback: open in new tab if fetch fails
-      window.open(resume.pdfUrl, '_blank')
     }
   }
 

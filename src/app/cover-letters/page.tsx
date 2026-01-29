@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { listCoverLetters, deleteCoverLetter, getCoverLetter, compileCoverLetter } from '@/services/coverLetterService'
 import { CoverLetterListItem } from '@/types/coverLetter'
 import { PencilIcon, TrashIcon, PlusIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import { downloadPDF } from '@/lib/downloadUtils'
 
 export default function CoverLettersPage() {
   const { data: session, status } = useSession()
@@ -79,28 +80,17 @@ export default function CoverLettersPage() {
     try {
       setDownloadingId(id)
 
-      // Fetch the cover letter content
       const response = await getCoverLetter(id, session.user.googleId)
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch cover letter')
       }
 
-      // Compile to PDF
       const pdfBlob = await compileCoverLetter(response.data.content)
-
-      // Trigger download
-      const url = URL.createObjectURL(pdfBlob)
       const fileName = companyName
         ? `Cover Letter - ${companyName} - ${jobTitle}.pdf`
         : `Cover Letter - ${jobTitle}.pdf`
 
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await downloadPDF(pdfBlob, fileName)
     } catch (err: any) {
       console.error('Failed to download cover letter:', err)
       setError(err.message || 'Failed to download cover letter')
