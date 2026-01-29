@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { BackgroundGradient } from '@/components/shared/background-gradient'
+import { listResumes } from '@/services/resumeService'
+import { listCoverLetters } from '@/services/coverLetterService'
 
 function SettingsContent() {
   const { data: session, status, update: updateSession } = useSession()
@@ -15,6 +17,11 @@ function SettingsContent() {
   const [mounted, setMounted] = useState(false)
   const [billingLoading, setBillingLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [usageStats, setUsageStats] = useState({
+    resumeCount: 0,
+    coverLetterCount: 0,
+    isLoading: true
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -59,6 +66,37 @@ function SettingsContent() {
       router.push('/auth')
     }
   }, [status, router])
+
+  // Fetch usage statistics
+  useEffect(() => {
+    const fetchUsageStats = async () => {
+      if (!session?.user?.googleId) return
+
+      try {
+        const [resumesResponse, coverLettersResponse] = await Promise.all([
+          listResumes(session.user.googleId),
+          listCoverLetters(session.user.googleId),
+        ])
+
+        setUsageStats({
+          resumeCount: resumesResponse.success ? resumesResponse.data.length : 0,
+          coverLetterCount: coverLettersResponse.success ? coverLettersResponse.data.length : 0,
+          isLoading: false,
+        })
+      } catch (error) {
+        console.error('Failed to fetch usage stats:', error)
+        setUsageStats({
+          resumeCount: 0,
+          coverLetterCount: 0,
+          isLoading: false,
+        })
+      }
+    }
+
+    if (status === 'authenticated' && session?.user?.googleId) {
+      fetchUsageStats()
+    }
+  }, [session?.user?.googleId, status])
 
   if (status === 'loading' || !mounted) {
     return (
@@ -515,7 +553,7 @@ function SettingsContent() {
                   className="text-2xl font-bold"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  0
+                  {usageStats.isLoading ? '...' : usageStats.resumeCount}
                 </p>
                 <p
                   className="text-sm"
@@ -532,7 +570,7 @@ function SettingsContent() {
                   className="text-2xl font-bold"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  0
+                  {usageStats.isLoading ? '...' : usageStats.coverLetterCount}
                 </p>
                 <p
                   className="text-sm"
@@ -549,7 +587,7 @@ function SettingsContent() {
                   className="text-2xl font-bold"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  0
+                  {usageStats.isLoading ? '...' : (usageStats.resumeCount + usageStats.coverLetterCount)}
                 </p>
                 <p
                   className="text-sm"

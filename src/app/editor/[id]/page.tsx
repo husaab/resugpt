@@ -371,34 +371,39 @@ export default function EditorPage() {
           </div>
 
           {/* Bottom row: Mode toggle + View toggle */}
-          <div className="flex items-center justify-between px-3 pb-2 gap-2">
-            {/* Editor mode toggle (compact) */}
-            <div className="flex items-center bg-[var(--bg-muted)] rounded-lg p-0.5">
-              <button
-                onClick={() => setEditorMode('structured')}
-                className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
-                  editorMode === 'structured'
-                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-secondary)]'
-                )}
-              >
-                <Squares2X2Icon className="w-3.5 h-3.5" />
-                Form
-              </button>
-              <button
-                onClick={() => setEditorMode('advanced')}
-                className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
-                  editorMode === 'advanced'
-                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-secondary)]'
-                )}
-              >
-                <CodeBracketIcon className="w-3.5 h-3.5" />
-                LaTeX
-              </button>
-            </div>
+          <div className={cn(
+            'flex items-center px-3 pb-2 gap-2',
+            mobileView === 'preview' ? 'justify-center' : 'justify-between'
+          )}>
+            {/* Editor mode toggle (compact) - only show when in editor view */}
+            {mobileView === 'editor' && (
+              <div className="flex items-center bg-[var(--bg-muted)] rounded-lg p-0.5">
+                <button
+                  onClick={() => setEditorMode('structured')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
+                    editorMode === 'structured'
+                      ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                      : 'text-[var(--text-secondary)]'
+                  )}
+                >
+                  <Squares2X2Icon className="w-3.5 h-3.5" />
+                  Form
+                </button>
+                <button
+                  onClick={() => setEditorMode('advanced')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors',
+                    editorMode === 'advanced'
+                      ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                      : 'text-[var(--text-secondary)]'
+                  )}
+                >
+                  <CodeBracketIcon className="w-3.5 h-3.5" />
+                  LaTeX
+                </button>
+              </div>
+            )}
 
             {/* Mobile view toggle */}
             <div className="flex items-center bg-[var(--bg-muted)] rounded-lg p-0.5">
