@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import { ThemeSwitch } from './theme-switch'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -12,7 +13,106 @@ import { SignOutModal } from './auth/SignOutModal'
 import { cn } from '@/lib/utils'
 import { useCredits } from '@/contexts/CreditContext'
 
-// Navigation link component with proper spacing and hover states
+// Dropdown menu item type
+interface DropdownItem {
+  label: string
+  href: string
+  description?: string
+}
+
+// Desktop dropdown component
+function NavDropdown({
+  label,
+  items
+}: {
+  label: string
+  items: DropdownItem[]
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
+
+  // Check if any item in dropdown is active
+  const isActive = items.some(item => pathname === item.href)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setIsOpen(false)
+  }, [pathname])
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-1 px-3 py-2 text-sm font-medium cursor-pointer transition-colors rounded-lg',
+          isActive
+            ? 'text-[var(--accent-color)]'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
+        )}
+      >
+        {label}
+        <ChevronDownIcon
+          className={cn(
+            'w-4 h-4 transition-transform duration-200',
+            isOpen && 'rotate-180'
+          )}
+        />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute top-full left-0 mt-1 w-56 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-hidden z-50"
+          >
+            <div className="p-2">
+              {items.map((item, index) => {
+                const isItemActive = pathname === item.href
+                return (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      'block px-3 py-2.5 rounded-lg transition-colors',
+                      isItemActive
+                        ? 'bg-[var(--accent-light)] text-[var(--accent-color)]'
+                        : 'text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{item.label}</span>
+                    {item.description && (
+                      <span className="block text-xs text-[var(--text-tertiary)] mt-0.5">
+                        {item.description}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// Simple nav link for non-dropdown items
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname()
   const isActive = pathname === href
@@ -30,29 +130,102 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
         whileTap={{ scale: 0.98 }}
       >
         {children}
-        {isActive && (
-          <motion.div
-            layoutId="navbar-indicator"
-            className="absolute bottom-0 left-3 right-3 h-0.5 bg-[var(--accent-color)] rounded-full"
-            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-          />
-        )}
       </motion.span>
     </Link>
   )
 }
 
-// Mobile navigation link with larger touch targets and staggered animation
+// Mobile collapsible section
+function MobileNavSection({
+  label,
+  items,
+  onItemClick,
+  index
+}: {
+  label: string
+  items: DropdownItem[]
+  onItemClick: () => void
+  index: number
+}) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const pathname = usePathname()
+  const isActive = items.some(item => pathname === item.href)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{
+        duration: 0.3,
+        delay: index * 0.05,
+        ease: [0.25, 0.1, 0.25, 1]
+      }}
+    >
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={cn(
+          'w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors',
+          isActive
+            ? 'bg-[var(--accent-light)] text-[var(--accent-color)]'
+            : 'text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
+        )}
+      >
+        <span className="text-base font-medium">{label}</span>
+        <ChevronDownIcon
+          className={cn(
+            'w-5 h-5 transition-transform duration-200',
+            isExpanded && 'rotate-180'
+          )}
+        />
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="pl-4 py-1 space-y-1">
+              {items.map((item, idx) => {
+                const isItemActive = pathname === item.href
+                return (
+                  <Link
+                    key={idx}
+                    href={item.href}
+                    onClick={onItemClick}
+                    className={cn(
+                      'block px-4 py-2.5 rounded-lg transition-colors',
+                      isItemActive
+                        ? 'bg-[var(--accent-light)] text-[var(--accent-color)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]'
+                    )}
+                  >
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+// Mobile navigation link (for non-dropdown items)
 function MobileNavLink({
   href,
   children,
   onClick,
   index
 }: {
-  href: string;
-  children: React.ReactNode;
-  onClick: () => void;
-  index: number;
+  href: string
+  children: React.ReactNode
+  onClick: () => void
+  index: number
 }) {
   const pathname = usePathname()
   const isActive = pathname === href
@@ -61,7 +234,6 @@ function MobileNavLink({
     <motion.div
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -12 }}
       transition={{
         duration: 0.3,
         delay: index * 0.05,
@@ -71,7 +243,7 @@ function MobileNavLink({
       <Link href={href} onClick={onClick}>
         <motion.div
           className={cn(
-            'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
+            'flex items-center gap-3 px-4 py-3 rounded-xl transition-colors',
             isActive
               ? 'bg-[var(--accent-light)] text-[var(--accent-color)]'
               : 'text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
@@ -79,12 +251,6 @@ function MobileNavLink({
           whileTap={{ scale: 0.98 }}
         >
           <span className="text-base font-medium">{children}</span>
-          {isActive && (
-            <motion.div
-              layoutId="mobile-nav-indicator"
-              className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--accent-color)]"
-            />
-          )}
         </motion.div>
       </Link>
     </motion.div>
@@ -138,6 +304,22 @@ function NavDivider() {
     <div className="h-5 w-px bg-[var(--border-color)] mx-1" />
   )
 }
+
+// Navigation menu data
+const resumeMenuItems: DropdownItem[] = [
+  { label: 'Generate Resume', href: '/', description: 'Create a tailored resume' },
+  { label: 'My Resumes', href: '/resumes', description: 'View saved resumes' },
+]
+
+const coverLetterMenuItems: DropdownItem[] = [
+  { label: 'Generate Cover Letter', href: '/cover-letter', description: 'Create a cover letter' },
+  { label: 'My Cover Letters', href: '/cover-letters', description: 'View saved letters' },
+]
+
+const appQAMenuItems: DropdownItem[] = [
+  { label: 'New Q&A Session', href: '/application-qa/new', description: 'Answer application questions' },
+  { label: 'My Q&A Sessions', href: '/application-qa', description: 'View saved sessions' },
+]
 
 export function Navbar() {
   const { data: session } = useSession()
@@ -242,11 +424,11 @@ export function Navbar() {
                     transition={{ duration: 0.2 }}
                     className="flex items-center"
                   >
-                    {/* Navigation links group */}
+                    {/* Navigation dropdowns */}
                     <nav className="hidden sm:flex items-center gap-1 mr-4">
-                      <NavLink href="/cover-letter">Cover Letter</NavLink>
-                      <NavLink href="/cover-letters">My Letters</NavLink>
-                      <NavLink href="/resumes">My Resumes</NavLink>
+                      <NavDropdown label="Resumes" items={resumeMenuItems} />
+                      <NavDropdown label="Cover Letters" items={coverLetterMenuItems} />
+                      <NavDropdown label="App Q&A" items={appQAMenuItems} />
                       <NavLink href="/pricing">Pricing</NavLink>
                     </nav>
 
@@ -327,7 +509,8 @@ export function Navbar() {
                     className="flex items-center gap-3"
                   >
                     <nav className="hidden sm:flex items-center gap-1">
-                      <NavLink href="/cover-letter">Cover Letter</NavLink>
+                      <NavDropdown label="Resumes" items={resumeMenuItems} />
+                      <NavDropdown label="Cover Letters" items={coverLetterMenuItems} />
                       <NavLink href="/pricing">Pricing</NavLink>
                     </nav>
                     <NavDivider />
@@ -401,33 +584,45 @@ export function Navbar() {
                 <nav className="p-4 space-y-1">
                   {mounted && session?.user ? (
                     <>
-                      <MobileNavLink href="/" onClick={() => setMobileMenuOpen(false)} index={0}>
-                        Resume
-                      </MobileNavLink>
-                      <MobileNavLink href="/resumes" onClick={() => setMobileMenuOpen(false)} index={1}>
-                        My Resumes
-                      </MobileNavLink>
-                      <MobileNavLink href="/cover-letter" onClick={() => setMobileMenuOpen(false)} index={2}>
-                        Cover Letter
-                      </MobileNavLink>
-                      <MobileNavLink href="/cover-letters" onClick={() => setMobileMenuOpen(false)} index={3}>
-                        My Cover Letters
-                      </MobileNavLink>
-                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={4}>
+                      <MobileNavSection
+                        label="Resumes"
+                        items={resumeMenuItems}
+                        onItemClick={() => setMobileMenuOpen(false)}
+                        index={0}
+                      />
+                      <MobileNavSection
+                        label="Cover Letters"
+                        items={coverLetterMenuItems}
+                        onItemClick={() => setMobileMenuOpen(false)}
+                        index={1}
+                      />
+                      <MobileNavSection
+                        label="App Q&A"
+                        items={appQAMenuItems}
+                        onItemClick={() => setMobileMenuOpen(false)}
+                        index={2}
+                      />
+                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={3}>
                         Pricing
                       </MobileNavLink>
-                      <MobileNavLink href="/settings" onClick={() => setMobileMenuOpen(false)} index={5}>
+                      <MobileNavLink href="/settings" onClick={() => setMobileMenuOpen(false)} index={4}>
                         Settings
                       </MobileNavLink>
                     </>
                   ) : mounted ? (
                     <>
-                      <MobileNavLink href="/" onClick={() => setMobileMenuOpen(false)} index={0}>
-                        Resume
-                      </MobileNavLink>
-                      <MobileNavLink href="/cover-letter" onClick={() => setMobileMenuOpen(false)} index={1}>
-                        Cover Letter
-                      </MobileNavLink>
+                      <MobileNavSection
+                        label="Resumes"
+                        items={resumeMenuItems}
+                        onItemClick={() => setMobileMenuOpen(false)}
+                        index={0}
+                      />
+                      <MobileNavSection
+                        label="Cover Letters"
+                        items={coverLetterMenuItems}
+                        onItemClick={() => setMobileMenuOpen(false)}
+                        index={1}
+                      />
                       <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={2}>
                         Pricing
                       </MobileNavLink>
