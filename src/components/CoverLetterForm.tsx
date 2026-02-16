@@ -17,6 +17,7 @@ import { CoverLetterTone } from '@/types/coverLetter'
 import { CreditWarningBanner } from './credits/CreditWarningBanner'
 import { Tooltip } from './ui/Tooltip'
 import { ValidationTooltipContent } from './ui/ValidationTooltipContent'
+import { useTrackEvent } from './providers/AnalyticsProvider'
 
 // Dynamic import for pdfjs to avoid SSR issues
 let pdfjsLib: any = null
@@ -53,6 +54,7 @@ export function CoverLetterForm() {
 
   // Shared credit state (updates navbar instantly)
   const { displayCredits, subscriptionStatus, canGenerate, decrementCredits, refreshCredits } = useCredits()
+  const trackEvent = useTrackEvent()
 
   useEffect(() => {
     const loadPdfJs = async () => {
@@ -245,6 +247,7 @@ export function CoverLetterForm() {
 
     // Check credits
     if (!canGenerate) {
+      trackEvent('credits_depleted', { action: 'cover_letter_generation' })
       setSubmitError('You have no credits remaining. Please upgrade your plan to continue.')
       return
     }
@@ -264,6 +267,7 @@ export function CoverLetterForm() {
       })
 
       if (response.success && response.data?.id) {
+        trackEvent('cover_letter_generated', { tone: data.tone })
         // Refresh session to sync credits with backend (clears optimistic state)
         await refreshCredits()
         clearFormData()

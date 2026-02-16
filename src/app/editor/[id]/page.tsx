@@ -11,6 +11,7 @@ import { getResume, saveResume, compileResume } from '@/services/resumeService'
 import { ResumeData } from '@/types/resume'
 import { cn } from '@/lib/utils'
 import { downloadPDF } from '@/lib/downloadUtils'
+import { useTrackEvent } from '@/components/providers/AnalyticsProvider'
 
 type EditorMode = 'structured' | 'advanced'
 type MobileView = 'editor' | 'preview'
@@ -31,6 +32,7 @@ export default function EditorPage() {
   const { data: session, status } = useSession()
   const resumeId = params.id as string
 
+  const trackEvent = useTrackEvent()
   const [resumeData, setResumeData] = useState<ResumeData | null>(null)
   const [latex, setLatex] = useState<string>('')
   const [jobDescription, setJobDescription] = useState<string>('')
@@ -158,6 +160,7 @@ export default function EditorPage() {
         googleId: session.user.googleId,
       })
 
+      trackEvent('resume_saved')
       setHasUnsavedChanges(false)
     } catch (err: any) {
       console.error('Failed to save resume:', err)
@@ -189,6 +192,7 @@ export default function EditorPage() {
       )
       const url = URL.createObjectURL(pdfBlob)
       setPdfUrl(url)
+      trackEvent('resume_compiled')
     } catch (err: any) {
       console.error('Failed to compile PDF:', err)
       setCompileError(err.message || 'Failed to compile PDF')
@@ -200,6 +204,7 @@ export default function EditorPage() {
   // Download PDF
   const handleDownload = () => {
     if (!pdfUrl) return
+    trackEvent('resume_downloaded')
     downloadPDF(pdfUrl, `${title || 'resume'}.pdf`)
   }
 

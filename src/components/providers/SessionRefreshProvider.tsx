@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useAnalytics } from '@/hooks/useAnalytics'
 
 interface SessionRefreshProviderProps {
   children: React.ReactNode
@@ -16,7 +17,9 @@ interface SessionRefreshProviderProps {
  */
 export function SessionRefreshProvider({ children }: SessionRefreshProviderProps) {
   const { status, update } = useSession()
+  const { trackEvent } = useAnalytics()
   const hasRefreshedOnMount = useRef(false)
+  const hasLoggedLogin = useRef(false)
 
   // Refresh session on mount (only once, and only if authenticated)
   useEffect(() => {
@@ -27,6 +30,14 @@ export function SessionRefreshProvider({ children }: SessionRefreshProviderProps
       })
     }
   }, [status, update])
+
+  // Track login event once per page load
+  useEffect(() => {
+    if (status === 'authenticated' && !hasLoggedLogin.current) {
+      hasLoggedLogin.current = true
+      trackEvent('login', { method: 'google' })
+    }
+  }, [status, trackEvent])
 
   // Refresh session when tab becomes visible
   useEffect(() => {

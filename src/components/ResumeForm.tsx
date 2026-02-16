@@ -16,6 +16,7 @@ import { generateResume } from '@/services/resumeService'
 import { CreditWarningBanner } from './credits/CreditWarningBanner'
 import { Tooltip } from './ui/Tooltip'
 import { ValidationTooltipContent } from './ui/ValidationTooltipContent'
+import { useTrackEvent } from './providers/AnalyticsProvider'
 
 // Dynamic import for pdfjs to avoid SSR issues
 let pdfjsLib: any = null
@@ -41,6 +42,7 @@ export function ResumeForm() {
 
   // Shared credit state (updates navbar instantly)
   const { displayCredits, subscriptionStatus, canGenerate, decrementCredits, refreshCredits } = useCredits()
+  const trackEvent = useTrackEvent()
 
   useEffect(() => {
     const loadPdfJs = async () => {
@@ -223,6 +225,7 @@ export function ResumeForm() {
 
     // Check credits
     if (!canGenerate) {
+      trackEvent('credits_depleted', { action: 'resume_generation' })
       setSubmitError('You have no credits remaining. Please upgrade your plan to continue.')
       return
     }
@@ -240,6 +243,7 @@ export function ResumeForm() {
       })
 
       if (response.success && response.data?.id) {
+        trackEvent('resume_generated', { had_job_description: !data.noJobDescription })
         // Refresh session to sync credits with backend (clears optimistic state)
         await refreshCredits()
         // Clear form persistence data

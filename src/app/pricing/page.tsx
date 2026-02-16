@@ -17,6 +17,7 @@ import {
   getAnnualSavings,
   formatPrice,
 } from '@/lib/pricing'
+import { useTrackEvent } from '@/components/providers/AnalyticsProvider'
 
 const CheckIcon = () => (
   <svg
@@ -38,6 +39,7 @@ function PricingContent() {
   const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const trackEvent = useTrackEvent()
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly')
   const [mounted, setMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -49,13 +51,15 @@ function PricingContent() {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    trackEvent('pricing_page_viewed')
+  }, [trackEvent])
 
   // Handle checkout completion - refresh session to get updated subscription
   useEffect(() => {
     const checkoutStatus = searchParams.get('checkout')
 
     if (checkoutStatus === 'complete') {
+      trackEvent('checkout_completed')
       // Refresh session to get updated subscription status
       updateSession()
       // Clear the URL params and redirect to settings
@@ -64,7 +68,7 @@ function PricingContent() {
       setError('Checkout was cancelled. You can try again when ready.')
       router.replace('/pricing', { scroll: false })
     }
-  }, [searchParams, router, updateSession])
+  }, [searchParams, router, updateSession, trackEvent])
 
   // Calculate savings for the Pro tier (most meaningful comparison)
   const proTier = PRICING_TIERS.find((t) => t.id === 'pro')
@@ -93,6 +97,7 @@ function PricingContent() {
 
     setIsLoading(true)
     setError(null)
+    trackEvent('checkout_started', { tier: tierId, billing_period: billingPeriod })
 
     try {
       const response = await fetch('/api/stripe/checkout', {
@@ -123,7 +128,7 @@ function PricingContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [session, currentTier, billingPeriod, router])
+  }, [session, currentTier, billingPeriod, router, trackEvent])
 
   const handleCloseCheckout = useCallback(() => {
     setCheckoutOpen(false)

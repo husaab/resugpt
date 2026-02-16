@@ -10,6 +10,7 @@ import { TextEditor, CoverLetterPreviewPanel } from '@/components/cover-letter-e
 import { getCoverLetter, saveCoverLetter, compileCoverLetter } from '@/services/coverLetterService'
 import { cn } from '@/lib/utils'
 import { downloadPDF } from '@/lib/downloadUtils'
+import { useTrackEvent } from '@/components/providers/AnalyticsProvider'
 
 type MobileView = 'editor' | 'preview'
 
@@ -19,6 +20,7 @@ export default function CoverLetterEditorPage() {
   const { data: session, status } = useSession()
   const coverLetterId = params.id as string
 
+  const trackEvent = useTrackEvent()
   const [content, setContent] = useState<string>('')
   const [jobTitle, setJobTitle] = useState<string>('')
   const [companyName, setCompanyName] = useState<string>('')
@@ -99,6 +101,7 @@ export default function CoverLetterEditorPage() {
         googleId: session.user.googleId,
       })
 
+      trackEvent('cover_letter_saved')
       setHasUnsavedChanges(false)
     } catch (err: any) {
       console.error('Failed to save cover letter:', err)
@@ -124,6 +127,7 @@ export default function CoverLetterEditorPage() {
       const pdfBlob = await compileCoverLetter(content)
       const url = URL.createObjectURL(pdfBlob)
       setPdfUrl(url)
+      trackEvent('cover_letter_compiled')
     } catch (err: any) {
       console.error('Failed to compile PDF:', err)
       setCompileError(err.message || 'Failed to compile PDF')
@@ -135,6 +139,7 @@ export default function CoverLetterEditorPage() {
   // Download PDF
   const handleDownload = () => {
     if (!pdfUrl) return
+    trackEvent('cover_letter_downloaded')
     const fileName = companyName
       ? `Cover Letter - ${companyName} - ${jobTitle}.pdf`
       : `Cover Letter - ${jobTitle}.pdf`
