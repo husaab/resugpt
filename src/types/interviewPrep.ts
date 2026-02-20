@@ -201,3 +201,117 @@ export interface DeleteRoleResponse {
   success: boolean;
   message: string;
 }
+
+// ─── External Submission Types ─────────────────────────
+
+export interface SubmitExternalDataResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    source: string;
+    status: string;
+    createdAt: string;
+  };
+}
+
+// ─── Admin Submission Types ───────────────────────────
+
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+export type SubmissionSource = 'user' | 'scraper';
+
+export interface SubmissionListItem {
+  id: string;
+  source: SubmissionSource;
+  status: SubmissionStatus;
+  companyName: string;
+  roleTitle: string;
+  roleLevel: string;
+  submittedBy: string | null;
+  submittedByUsername: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export interface SubmissionDetails {
+  id: string;
+  source: SubmissionSource;
+  status: SubmissionStatus;
+  data: {
+    company: {
+      name: string;
+      logo?: string | null;
+      industry?: string;
+      description?: string;
+      interviewStyle?: string;
+    };
+    role: {
+      title: string;
+      level: string;
+      department?: string;
+      description?: string;
+      rounds?: InterviewRound[];
+      tips?: string[];
+    };
+  };
+  submittedBy: string | null;
+  submittedByUsername: string | null;
+  submittedByEmail: string | null;
+  reviewedBy: string | null;
+  reviewedByUsername: string | null;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  rejectionReason: string | null;
+  linkedCompanyId: string | null;
+  linkedCompanyName: string | null;
+  createdCompanyId: string | null;
+  createdRoleId: string | null;
+  scraperMetadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListSubmissionsParams {
+  status?: SubmissionStatus;
+  source?: SubmissionSource;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ListSubmissionsResponse {
+  success: boolean;
+  data: SubmissionListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface GetSubmissionResponse {
+  success: boolean;
+  data: SubmissionDetails;
+}
+
+export interface ApproveSubmissionRequest {
+  linkedCompanyId?: string;
+  reviewNotes?: string;
+}
+
+export interface ApproveSubmissionResponse {
+  success: boolean;
+  message: string;
+  data: {
+    companyId: string;
+    roleId: string;
+    companyCreated: boolean;
+  };
+}
+
+export interface RejectSubmissionRequest {
+  rejectionReason: string;
+  reviewNotes?: string;
+}
+
+export interface RejectSubmissionResponse {
+  success: boolean;
+  message: string;
+}

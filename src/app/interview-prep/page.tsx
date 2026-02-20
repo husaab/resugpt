@@ -13,6 +13,7 @@ import {
   EyeIcon,
   XMarkIcon,
   BuildingOffice2Icon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +28,7 @@ import {
   EditCompanyModal,
   DeleteCompanyModal,
   ViewCompanyModal,
+  SubmitDataModal,
 } from '@/components/interview-prep'
 import type { CompanyFormData } from '@/components/interview-prep'
 import type { CompanyListItem } from '@/types/interviewPrep'
@@ -39,6 +41,7 @@ type ModalState =
   | { type: 'edit'; company: CompanyListItem }
   | { type: 'delete'; company: CompanyListItem }
   | { type: 'view'; company: CompanyListItem }
+  | { type: 'submit' }
 
 export default function InterviewPrepPage() {
   const { data: session } = useSession()
@@ -256,12 +259,20 @@ export default function InterviewPrepPage() {
                 Choose a company and role to start your mock interview
               </p>
             </div>
-            {isAdmin && (
-              <Button variant="primary" size="md" onClick={() => setModal({ type: 'create' })}>
-                <PlusIcon className="w-5 h-5" />
-                Add Company
-              </Button>
-            )}
+            <div className="flex gap-3">
+              {session && (
+                <Button variant="outline" size="md" onClick={() => setModal({ type: 'submit' })}>
+                  <ArrowUpTrayIcon className="w-5 h-5" />
+                  Submit Data
+                </Button>
+              )}
+              {isAdmin && (
+                <Button variant="primary" size="md" onClick={() => setModal({ type: 'create' })}>
+                  <PlusIcon className="w-5 h-5" />
+                  Add Company
+                </Button>
+              )}
+            </div>
           </div>
         </motion.div>
 
@@ -556,6 +567,12 @@ export default function InterviewPrepPage() {
           if (modal.type === 'view') setModal({ type: 'edit', company: modal.company })
         }}
         company={modal.type === 'view' ? modal.company : null}
+      />
+
+      <SubmitDataModal
+        isOpen={modal.type === 'submit'}
+        onClose={() => setModal({ type: 'none' })}
+        companies={companies}
       />
     </div>
   )

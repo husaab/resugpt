@@ -12,6 +12,7 @@ import {
   XMarkIcon,
   MagnifyingGlassIcon,
   ChevronDownIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,21 +21,24 @@ import {
   CreateRoleModal,
   EditRoleModal,
   DeleteRoleModal,
+  SubmitDataModal,
 } from '@/components/interview-prep'
 import type { RoleFormData } from '@/components/interview-prep/RoleForm'
 import {
   getCompanyWithRoles,
+  listCompanies,
   createRole,
   updateRole,
   deleteRole,
 } from '@/services/interviewPrepService'
-import type { Company, RoleSummary, RoleDetails } from '@/types/interviewPrep'
+import type { Company, CompanyListItem, RoleSummary, RoleDetails } from '@/types/interviewPrep'
 
 type ModalState =
   | { type: 'none' }
   | { type: 'create' }
   | { type: 'edit'; role: RoleDetails }
   | { type: 'delete'; role: RoleSummary }
+  | { type: 'submit' }
 
 export default function CompanyDetailPage() {
   const { companyId } = useParams<{ companyId: string }>()
@@ -42,6 +46,7 @@ export default function CompanyDetailPage() {
   const isAdmin = session?.user?.isAdmin === true
 
   const [company, setCompany] = useState<Company | null>(null)
+  const [allCompanies, setAllCompanies] = useState<CompanyListItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
@@ -59,14 +64,20 @@ export default function CompanyDetailPage() {
   // ─── Fetch ──────────────────────────────────────────
 
   useEffect(() => {
-    const fetchCompany = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true)
-        const res = await getCompanyWithRoles(companyId)
-        if (res.success) {
-          setCompany(res.data)
+        const [companyRes, companiesRes] = await Promise.all([
+          getCompanyWithRoles(companyId),
+          listCompanies(),
+        ])
+        if (companyRes.success) {
+          setCompany(companyRes.data)
         } else {
           setError('Failed to load company')
+        }
+        if (companiesRes.success) {
+          setAllCompanies(companiesRes.data)
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load company')
@@ -74,7 +85,7 @@ export default function CompanyDetailPage() {
         setIsLoading(false)
       }
     }
-    fetchCompany()
+    fetchData()
   }, [companyId])
 
   const roles = company?.roles ?? []
@@ -322,17 +333,29 @@ export default function CompanyDetailPage() {
               </div>
             </div>
 
-            {/* Admin: Add Role */}
-            {isAdmin && (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setModal({ type: 'create' })}
-              >
-                <PlusIcon className="w-5 h-5" />
-                Add Role
-              </Button>
-            )}
+            <div className="flex gap-3">
+              {session && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => setModal({ type: 'submit' })}
+                >
+                  <ArrowUpTrayIcon className="w-5 h-5" />
+                  Submit Data
+                </Button>
+              )}
+              {/* Admin: Add Role */}
+              {isAdmin && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => setModal({ type: 'create' })}
+                >
+                  <PlusIcon className="w-5 h-5" />
+                  Add Role
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Description + Interview Style */}
@@ -563,6 +586,13 @@ export default function CompanyDetailPage() {
         onConfirm={handleDeleteRole}
         role={modal.type === 'delete' ? modal.role : null}
         isSubmitting={isSubmitting}
+      />
+
+      <SubmitDataModal
+        isOpen={modal.type === 'submit'}
+        onClose={() => setModal({ type: 'none' })}
+        companies={allCompanies}
+        preSelectedCompanyId={company?.id}
       />
     </div>
   )

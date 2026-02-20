@@ -11,6 +11,14 @@ import {
   UpdateRoleRequest,
   UpdateRoleResponse,
   DeleteRoleResponse,
+  SubmitExternalDataResponse,
+  ListSubmissionsParams,
+  ListSubmissionsResponse,
+  GetSubmissionResponse,
+  ApproveSubmissionRequest,
+  ApproveSubmissionResponse,
+  RejectSubmissionRequest,
+  RejectSubmissionResponse,
 } from '@/types/interviewPrep';
 
 const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -176,4 +184,83 @@ export const deleteRole = async (
     method: 'DELETE',
     body: { googleId },
   });
+};
+
+// ─── User Submissions ──────────────────────────────────
+
+/**
+ * Submit crowdsourced interview data (any authenticated user)
+ */
+export const submitExternalData = async (
+  payload: { company: Record<string, unknown>; role: Record<string, unknown> },
+  googleId: string
+): Promise<SubmitExternalDataResponse> => {
+  return apiClient<SubmitExternalDataResponse>('submissions', {
+    method: 'POST',
+    body: { googleId, data: payload },
+  });
+};
+
+// ─── Admin: Submissions ──────────────────────────────────
+
+/**
+ * List all submissions with optional filters (admin only)
+ */
+export const listSubmissions = async (
+  params: ListSubmissionsParams,
+  googleId: string
+): Promise<ListSubmissionsResponse> => {
+  const query = new URLSearchParams();
+  query.append('googleId', googleId);
+  if (params.status) query.append('status', params.status);
+  if (params.source) query.append('source', params.source);
+  query.append('limit', String(params.limit || 50));
+  query.append('offset', String(params.offset || 0));
+
+  return apiClient<ListSubmissionsResponse>(
+    `submissions/admin?${query.toString()}`,
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Get full details of a single submission (admin only)
+ */
+export const getSubmissionDetails = async (
+  id: string,
+  googleId: string
+): Promise<GetSubmissionResponse> => {
+  const query = new URLSearchParams({ googleId });
+  return apiClient<GetSubmissionResponse>(
+    `submissions/admin/${id}?${query.toString()}`,
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Approve a submission — atomically creates company + role (admin only)
+ */
+export const approveSubmission = async (
+  id: string,
+  data: ApproveSubmissionRequest,
+  googleId: string
+): Promise<ApproveSubmissionResponse> => {
+  return apiClient<ApproveSubmissionResponse>(
+    `submissions/admin/${id}/approve`,
+    { method: 'POST', body: { ...data, googleId } }
+  );
+};
+
+/**
+ * Reject a submission with a reason (admin only)
+ */
+export const rejectSubmission = async (
+  id: string,
+  data: RejectSubmissionRequest,
+  googleId: string
+): Promise<RejectSubmissionResponse> => {
+  return apiClient<RejectSubmissionResponse>(
+    `submissions/admin/${id}/reject`,
+    { method: 'POST', body: { ...data, googleId } }
+  );
 };
