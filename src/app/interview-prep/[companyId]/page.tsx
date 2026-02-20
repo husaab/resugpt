@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   RoleCard,
+  RoleDetailPanel,
   CreateRoleModal,
   EditRoleModal,
   DeleteRoleModal,
@@ -26,6 +27,7 @@ import {
 import type { RoleFormData } from '@/components/interview-prep/RoleForm'
 import {
   getCompanyWithRoles,
+  getRoleDetails,
   listCompanies,
   createRole,
   updateRole,
@@ -51,7 +53,7 @@ export default function CompanyDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [expandedRoleId, setExpandedRoleId] = useState<string | null>(null)
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null)
   const [logoFailed, setLogoFailed] = useState(false)
 
   // Toolbar state
@@ -111,6 +113,13 @@ export default function CompanyDetailPage() {
 
     return result
   }, [roles, searchQuery, levelFilter])
+
+  // Clear selection if the selected role gets filtered out
+  useEffect(() => {
+    if (selectedRoleId && !filteredRoles.some((r) => r.id === selectedRoleId)) {
+      setSelectedRoleId(null)
+    }
+  }, [filteredRoles, selectedRoleId])
 
   // ─── Admin Handlers ─────────────────────────────────
 
@@ -193,7 +202,7 @@ export default function CompanyDetailPage() {
               }
             : prev
         )
-        setExpandedRoleId(null)
+        setSelectedRoleId(null)
         setModal({ type: 'none' })
       }
     } catch (err: any) {
@@ -215,7 +224,7 @@ export default function CompanyDetailPage() {
         setCompany((prev) =>
           prev ? { ...prev, roles: prev.roles.filter((r) => r.id !== roleId) } : prev
         )
-        if (expandedRoleId === roleId) setExpandedRoleId(null)
+        if (selectedRoleId === roleId) setSelectedRoleId(null)
         setModal({ type: 'none' })
       }
     } catch (err: any) {
@@ -506,17 +515,27 @@ export default function CompanyDetailPage() {
                   >
                     <RoleCard
                       role={role}
+                      companyId={companyId}
                       isAdmin={isAdmin}
-                      isExpanded={expandedRoleId === role.id}
-                      onToggle={() =>
-                        setExpandedRoleId((prev) =>
+                      isSelected={selectedRoleId === role.id}
+                      onSelect={() =>
+                        setSelectedRoleId((prev) =>
                           prev === role.id ? null : role.id
                         )
                       }
-                      detailsCache={detailsCache}
-                      onEdit={(roleDetails) =>
-                        setModal({ type: 'edit', role: roleDetails })
-                      }
+                      onEdit={() => {
+                        const cached = detailsCache.current.get(role.id)
+                        if (cached) {
+                          setModal({ type: 'edit', role: cached })
+                        } else {
+                          getRoleDetails(role.id).then((res) => {
+                            if (res.success) {
+                              detailsCache.current.set(role.id, res.data)
+                              setModal({ type: 'edit', role: res.data })
+                            }
+                          })
+                        }
+                      }}
                       onDelete={(roleSummary) =>
                         setModal({ type: 'delete', role: roleSummary })
                       }
@@ -560,6 +579,22 @@ export default function CompanyDetailPage() {
               )}
             </div>
           )}
+
+          {/* Role Detail Modal */}
+          <RoleDetailPanel
+            isOpen={selectedRoleId !== null}
+            roleId={selectedRoleId ?? ''}
+            companyId={companyId}
+            detailsCache={detailsCache}
+            onClose={() => setSelectedRoleId(null)}
+            isAdmin={isAdmin}
+            onEdit={(roleDetails) =>
+              setModal({ type: 'edit', role: roleDetails })
+            }
+            onDelete={(roleSummary) =>
+              setModal({ type: 'delete', role: roleSummary })
+            }
+          />
         </motion.div>
       </div>
 

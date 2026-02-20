@@ -9,7 +9,7 @@ interface ModalShellProps {
   onClose: () => void
   title: string
   children: React.ReactNode
-  size?: 'md' | 'lg' | 'xl'
+  size?: 'md' | 'lg' | 'xl' | '2xl'
 }
 
 export function ModalShell({ isOpen, onClose, title, children, size = 'md' }: ModalShellProps) {
@@ -43,7 +43,7 @@ export function ModalShell({ isOpen, onClose, title, children, size = 'md' }: Mo
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
             className={`relative bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl shadow-xl w-full ${
-              size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'
+              size === '2xl' ? 'max-w-6xl' : size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'
             } max-h-[90vh] overflow-y-auto`}
           >
             <div className="sticky top-0 flex items-center justify-between p-6 pb-4 bg-[var(--bg-elevated)] border-b border-[var(--border-color)] rounded-t-2xl">
