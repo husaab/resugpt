@@ -29,3 +29,38 @@ Remaining Week 1 (Foundation)
 
   The natural next step after the role page is the Interview Briefing Page — it's the last pure frontend/data page before you need to build the real-time
   interview engine.
+
+
+
+  Feb 22, 2026
+
+
+  Step 2: Create the interview_sessions table
+
+  Add the PostgreSQL schema matching the InterviewSessions / SessionRound / Exchange data model from your design doc.
+   This is the backbone everything else depends on.
+
+  Step 3: Build session API endpoints
+
+  Following your existing pattern (routes → controller → queries):
+  - POST /sessions — create session, deduct credits
+  - GET /sessions — user's past sessions
+  - GET /sessions/:id — session details
+  - PATCH /sessions/:id/abandon — abandon session
+
+  Step 4: Build the Interview Briefing page
+
+  /interview-prep/[companyId]/[roleId] — shows round overview, mic test placeholder, "Start Interview" button that
+  creates a session.
+
+  Step 5: Build the Live Interview page (text-only MVP)
+
+  /interview-prep/session/[sessionId] — text-based chat interface with the AI interviewer. Voice comes in Week 3.
+
+  Step 6: Interview engine + scoring
+
+  Backend logic for AI prompting (behavioral first), question selection, and post-round scoring.
+
+  ---
+  Do you want me to start with Step 2 (the interview_sessions database schema + session endpoints), or would you
+  prefer to tackle things in a different order? Also — should I check on that submissions route file first?

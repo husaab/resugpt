@@ -10,6 +10,7 @@ import {
   PencilSquareIcon,
   TrashIcon,
   BriefcaseIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -281,6 +282,23 @@ export default function RoleDetailPage() {
             </p>
           )}
         </motion.div>
+
+        {/* Start Interview CTA */}
+        {session && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.05 }}
+            className="mb-6"
+          >
+            <Link href={`/interview-prep/${companyId}/roles/${roleId}/briefing`}>
+              <Button variant="primary" size="md">
+                <PlayIcon className="w-5 h-5" />
+                Start Mock Interview
+              </Button>
+            </Link>
+          </motion.div>
+        )}
 
         {/* Role Details Content (tabs + tab bodies) */}
         <motion.div

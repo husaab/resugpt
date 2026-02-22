@@ -146,3 +146,19 @@ html {
 html {
   overflow-y: scroll;
 }
+
+/* Immersive mode: hide navbar/footer during live interview */
+body.interview-immersive nav,
+body.interview-immersive footer {
+  display: none !important;
+}
+
+body.interview-immersive {
+  overflow: hidden;
+}
+
+/* Soundbar animation for speaking indicator */
+@keyframes soundbar {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
