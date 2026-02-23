@@ -26,9 +26,16 @@ export function TranscriptPanel({
     <div className="flex-1 overflow-y-auto px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-4">
         {exchanges.length === 0 && !aiPartialTranscript && currentSpeaker !== 'candidate' && (
-          <p className="text-center text-sm text-[var(--text-tertiary)] py-12">
-            Interview will begin shortly...
-          </p>
+          <div className="flex flex-col items-center gap-3 py-12">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[var(--accent-color)] animate-[pulse_1.4s_ease-in-out_infinite]" />
+              <span className="w-2 h-2 rounded-full bg-[var(--accent-color)] animate-[pulse_1.4s_ease-in-out_infinite_0.2s]" />
+              <span className="w-2 h-2 rounded-full bg-[var(--accent-color)] animate-[pulse_1.4s_ease-in-out_infinite_0.4s]" />
+            </div>
+            <p className="text-sm text-[var(--text-tertiary)]">
+              Interviewer is joining...
+            </p>
+          </div>
         )}
 
         {exchanges.map((ex, i) => (

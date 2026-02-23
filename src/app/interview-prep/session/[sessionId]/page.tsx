@@ -14,8 +14,10 @@ import { MicCheckPanel } from '@/components/interview-session/MicCheckPanel'
 import { TranscriptPanel } from '@/components/interview-session/TranscriptPanel'
 import { AudioControls } from '@/components/interview-session/AudioControls'
 import { RoundScoreCard } from '@/components/interview-session/RoundScoreCard'
+import { CodeEditorPanel, DEFAULT_CODE } from '@/components/interview-session/CodeEditorPanel'
 import { useMicCheck } from '@/hooks/useMicCheck'
 import { useRealtimeInterview } from '@/hooks/useRealtimeInterview'
+import { useCodeExecution } from '@/hooks/useCodeExecution'
 import {
   getInterviewSession,
   mintEphemeralToken,
@@ -47,12 +49,20 @@ export default function LiveInterviewPage() {
   // Score state (shown between rounds)
   const [roundResult, setRoundResult] = useState<EndRoundResponse['data'] | null>(null)
 
+  // Code editor state (technical/coding rounds)
+  const [code, setCode] = useState(DEFAULT_CODE.javascript)
+  const [codeLanguage, setCodeLanguage] = useState('javascript')
+  const [isOutputExpanded, setIsOutputExpanded] = useState(false)
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const transcriptRef = useRef<{ role: 'interviewer' | 'candidate'; content: string; timestamp: string }[]>([])
 
   // Mic check
   const mic = useMicCheck()
+
+  // Code execution (Piston API)
+  const codeExec = useCodeExecution()
 
   // Realtime connection
   const realtime = useRealtimeInterview({
@@ -65,6 +75,15 @@ export default function LiveInterviewPage() {
   })
 
   const googleId = authSession?.user?.googleId
+  const isCodingRound = ['technical', 'coding', 'live_coding'].includes(roundType)
+
+  // ─── Transition to active once data channel is open ──
+
+  useEffect(() => {
+    if (phase === 'connecting' && realtime.connectionState === 'connected') {
+      setPhase('active')
+    }
+  }, [phase, realtime.connectionState])
 
   // ─── Redirect if not authenticated ───────────────────
 
@@ -212,7 +231,8 @@ export default function LiveInterviewPage() {
       setRoundTitle(currentRound.title)
 
       await realtime.connect(ephemeralToken)
-      setPhase('active')
+      // Phase transitions to 'active' via the connectionState effect below,
+      // keeping the "Connecting..." spinner visible through ICE negotiation.
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to start interview')
       setPhase('error')
@@ -233,7 +253,9 @@ export default function LiveInterviewPage() {
         googleId,
         currentRoundNumber,
         transcriptRef.current,
-        elapsedSeconds
+        elapsedSeconds,
+        isCodingRound ? code : null,
+        isCodingRound ? codeLanguage : null
       )
 
       if (!result.success) {
@@ -253,7 +275,7 @@ export default function LiveInterviewPage() {
       setError(err instanceof Error ? err.message : 'Failed to end round')
       setPhase('error')
     }
-  }, [googleId, sessionId, currentRoundNumber, elapsedSeconds, realtime])
+  }, [googleId, sessionId, currentRoundNumber, elapsedSeconds, realtime, isCodingRound, code, codeLanguage])
 
   // ─── Next round ─────────────────────────────────────
 
@@ -263,6 +285,9 @@ export default function LiveInterviewPage() {
     try {
       setPhase('connecting')
       transcriptRef.current = []
+      setCode(DEFAULT_CODE.javascript)
+      setCodeLanguage('javascript')
+      setIsOutputExpanded(false)
 
       const tokenRes = await mintEphemeralToken(sessionId, googleId)
       if (!tokenRes.success) {
@@ -278,7 +303,7 @@ export default function LiveInterviewPage() {
       setRoundResult(null)
 
       await realtime.connect(ephemeralToken)
-      setPhase('active')
+      // Phase transitions to 'active' via the connectionState effect.
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to start next round')
       setPhase('error')
@@ -473,11 +498,47 @@ export default function LiveInterviewPage() {
         onEndRound={handleEndRound}
       />
 
-      <TranscriptPanel
-        exchanges={realtime.transcript}
-        aiPartialTranscript={realtime.aiPartialTranscript}
-        currentSpeaker={realtime.currentSpeaker}
-      />
+      {isCodingRound ? (
+        <div className="flex-1 flex overflow-hidden">
+          <div className="w-2/5 border-r border-[var(--border-color)]">
+            <TranscriptPanel
+              exchanges={realtime.transcript}
+              aiPartialTranscript={realtime.aiPartialTranscript}
+              currentSpeaker={realtime.currentSpeaker}
+            />
+          </div>
+          <div className="w-3/5">
+            <CodeEditorPanel
+              language={codeLanguage}
+              code={code}
+              output={codeExec.output}
+              isRunning={codeExec.isRunning}
+              isOutputExpanded={isOutputExpanded}
+              onCodeChange={setCode}
+              onLanguageChange={setCodeLanguage}
+              onRun={() => codeExec.runCode(codeLanguage, code)}
+              onSubmit={() => {
+                // Add code as a special exchange in the transcript
+                transcriptRef.current = [
+                  ...transcriptRef.current,
+                  {
+                    role: 'candidate',
+                    content: `[Code Submitted — ${codeLanguage}]\n${code}`,
+                    timestamp: new Date().toISOString(),
+                  },
+                ]
+              }}
+              onToggleOutput={() => setIsOutputExpanded((prev) => !prev)}
+            />
+          </div>
+        </div>
+      ) : (
+        <TranscriptPanel
+          exchanges={realtime.transcript}
+          aiPartialTranscript={realtime.aiPartialTranscript}
+          currentSpeaker={realtime.currentSpeaker}
+        />
+      )}
 
       <AudioControls
         isMuted={realtime.isMuted}

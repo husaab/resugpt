@@ -64,6 +64,10 @@ export function useRealtimeInterview(
 
       dc.onopen = () => {
         setConnectionState('connected')
+
+        // Prompt the model to start its greeting immediately.
+        // Without this, the Realtime API waits for user speech (VAD) before responding.
+        dc.send(JSON.stringify({ type: 'response.create' }))
       }
 
       dc.onclose = () => {

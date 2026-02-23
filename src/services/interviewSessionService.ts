@@ -118,10 +118,21 @@ export const endRound = async (
   googleId: string,
   roundNumber: number,
   exchanges: Exchange[],
-  duration: number
+  duration: number,
+  codeSubmission?: string | null,
+  codeLanguage?: string | null
 ): Promise<EndRoundResponse> => {
   return apiClient<EndRoundResponse>(
     `interview-sessions/${sessionId}/end-round`,
-    { method: 'POST', body: { googleId, roundNumber, exchanges, duration } }
+    {
+      method: 'POST',
+      body: {
+        googleId,
+        roundNumber,
+        exchanges,
+        duration,
+        ...(codeSubmission ? { codeSubmission, codeLanguage } : {}),
+      },
+    }
   );
 };
