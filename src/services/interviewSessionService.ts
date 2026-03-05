@@ -13,6 +13,7 @@ import type {
   EndRoundResponse,
   Exchange,
 } from '@/types/interviewRealtime';
+import type { RunTestsResponse } from '@/types/codingProblem';
 
 /**
  * Create a new interview session
@@ -120,7 +121,8 @@ export const endRound = async (
   exchanges: Exchange[],
   duration: number,
   codeSubmission?: string | null,
-  codeLanguage?: string | null
+  codeLanguage?: string | null,
+  testResults?: { passed: number; total: number } | null
 ): Promise<EndRoundResponse> => {
   return apiClient<EndRoundResponse>(
     `interview-sessions/${sessionId}/end-round`,
@@ -132,7 +134,28 @@ export const endRound = async (
         exchanges,
         duration,
         ...(codeSubmission ? { codeSubmission, codeLanguage } : {}),
+        ...(testResults ? { testResults } : {}),
       },
+    }
+  );
+};
+
+/**
+ * Run test cases against user code for a coding problem round.
+ */
+export const runTests = async (
+  sessionId: string,
+  googleId: string,
+  roundNumber: number,
+  language: string,
+  code: string,
+  runMode: 'visible' | 'all'
+): Promise<RunTestsResponse> => {
+  return apiClient<RunTestsResponse>(
+    `interview-sessions/${sessionId}/run-tests`,
+    {
+      method: 'POST',
+      body: { googleId, roundNumber, language, code, runMode },
     }
   );
 };

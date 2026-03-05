@@ -20,6 +20,7 @@ interface RoundScoreCardProps {
   weaknesses: string[]
   feedback: string
   hasNextRound: boolean
+  testResults?: { passed: number; total: number } | null
   onNextRound?: () => void
   onViewResults?: () => void
 }
@@ -39,6 +40,7 @@ export function RoundScoreCard({
   weaknesses,
   feedback,
   hasNextRound,
+  testResults,
   onNextRound,
   onViewResults,
 }: RoundScoreCardProps) {
@@ -77,6 +79,24 @@ export function RoundScoreCard({
             <span className="text-xs text-[var(--text-tertiary)]">/10</span>
           </div>
         </div>
+
+        {/* Test Results (for coding problems) */}
+        {testResults && testResults.total > 0 && (
+          <div className="mb-4 p-3 bg-[var(--bg-muted)] rounded-xl flex items-center justify-between">
+            <span className="text-sm font-medium text-[var(--text-secondary)]">Test Cases</span>
+            <span
+              className={`text-sm font-bold ${
+                testResults.passed === testResults.total
+                  ? 'text-emerald-400'
+                  : testResults.passed > 0
+                    ? 'text-amber-400'
+                    : 'text-red-400'
+              }`}
+            >
+              {testResults.passed}/{testResults.total} passed
+            </span>
+          </div>
+        )}
 
         {/* Strengths */}
         {strengths.length > 0 && (

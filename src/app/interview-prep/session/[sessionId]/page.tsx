@@ -15,9 +15,11 @@ import { TranscriptPanel } from '@/components/interview-session/TranscriptPanel'
 import { AudioControls } from '@/components/interview-session/AudioControls'
 import { RoundScoreCard } from '@/components/interview-session/RoundScoreCard'
 import { CodeEditorPanel, DEFAULT_CODE } from '@/components/interview-session/CodeEditorPanel'
+import { CodingInterviewLayout } from '@/components/interview-session/CodingInterviewLayout'
 import { useMicCheck } from '@/hooks/useMicCheck'
 import { useRealtimeInterview } from '@/hooks/useRealtimeInterview'
 import { useCodeExecution } from '@/hooks/useCodeExecution'
+import { useTestRunner } from '@/hooks/useTestRunner'
 import {
   getInterviewSession,
   mintEphemeralToken,
@@ -26,6 +28,7 @@ import {
 } from '@/services/interviewSessionService'
 import type { InterviewSession } from '@/types/interviewSession'
 import type { InterviewPhase, EndRoundResponse } from '@/types/interviewRealtime'
+import type { CodingProblemFrontend } from '@/types/codingProblem'
 
 const TRANSCRIPT_SAVE_INTERVAL = 30_000 // 30 seconds
 
@@ -54,28 +57,40 @@ export default function LiveInterviewPage() {
   const [codeLanguage, setCodeLanguage] = useState('javascript')
   const [isOutputExpanded, setIsOutputExpanded] = useState(false)
 
+  // Coding problem state (CodeSignal-style rounds)
+  const [codingProblem, setCodingProblem] = useState<CodingProblemFrontend | null>(null)
+  const [lastSubmitResults, setLastSubmitResults] = useState<{ passed: number; total: number } | null>(null)
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const transcriptRef = useRef<{ role: 'interviewer' | 'candidate'; content: string; timestamp: string }[]>([])
 
+  const googleId = authSession?.user?.googleId
+  const isCodingRound = ['technical', 'coding', 'live_coding'].includes(roundType)
+  const hasCodingProblem = codingProblem !== null
+
   // Mic check
   const mic = useMicCheck()
 
-  // Code execution (Piston API)
+  // Code execution (Piston API — for free-form coding rounds without structured problems)
   const codeExec = useCodeExecution()
+
+  // Test runner (for CodeSignal-style rounds with structured problems)
+  const testRunner = useTestRunner({
+    sessionId,
+    googleId: googleId || '',
+    roundNumber: currentRoundNumber,
+  })
 
   // Realtime connection
   const realtime = useRealtimeInterview({
-    onEndRoundCalled: (summary) => {
+    onEndRoundCalled: () => {
       handleEndRound()
     },
     onTranscriptUpdate: (exchanges) => {
       transcriptRef.current = exchanges
     },
   })
-
-  const googleId = authSession?.user?.googleId
-  const isCodingRound = ['technical', 'coding', 'live_coding'].includes(roundType)
 
   // ─── Transition to active once data channel is open ──
 
@@ -131,6 +146,17 @@ export default function LiveInterviewPage() {
         if (currentRound) {
           setRoundType(currentRound.type)
           setRoundTitle(currentRound.type.replace(/_/g, ' '))
+
+          // Load coding problem if present
+          if (currentRound.codingProblem) {
+            setCodingProblem(currentRound.codingProblem)
+            // Set starter code for the default language
+            const starterCode = currentRound.codingProblem.starterCode
+            if (starterCode?.javascript) {
+              setCode(starterCode.javascript)
+              setCodeLanguage('javascript')
+            }
+          }
         }
 
         setPhase('mic-check')
@@ -255,7 +281,8 @@ export default function LiveInterviewPage() {
         transcriptRef.current,
         elapsedSeconds,
         isCodingRound ? code : null,
-        isCodingRound ? codeLanguage : null
+        isCodingRound ? codeLanguage : null,
+        lastSubmitResults
       )
 
       if (!result.success) {
@@ -275,7 +302,7 @@ export default function LiveInterviewPage() {
       setError(err instanceof Error ? err.message : 'Failed to end round')
       setPhase('error')
     }
-  }, [googleId, sessionId, currentRoundNumber, elapsedSeconds, realtime, isCodingRound, code, codeLanguage])
+  }, [googleId, sessionId, currentRoundNumber, elapsedSeconds, realtime, isCodingRound, code, codeLanguage, lastSubmitResults])
 
   // ─── Next round ─────────────────────────────────────
 
@@ -288,6 +315,9 @@ export default function LiveInterviewPage() {
       setCode(DEFAULT_CODE.javascript)
       setCodeLanguage('javascript')
       setIsOutputExpanded(false)
+      setCodingProblem(null)
+      setLastSubmitResults(null)
+      testRunner.clearResults()
 
       const tokenRes = await mintEphemeralToken(sessionId, googleId)
       if (!tokenRes.success) {
@@ -302,13 +332,26 @@ export default function LiveInterviewPage() {
       setRoundTitle(currentRound.title)
       setRoundResult(null)
 
+      // Check if next round has a coding problem
+      if (session) {
+        const nextSessionRound = session.rounds[currentRound.roundNumber - 1]
+        if (nextSessionRound?.codingProblem) {
+          setCodingProblem(nextSessionRound.codingProblem)
+          const starterCode = nextSessionRound.codingProblem.starterCode
+          if (starterCode?.javascript) {
+            setCode(starterCode.javascript)
+            setCodeLanguage('javascript')
+          }
+        }
+      }
+
       await realtime.connect(ephemeralToken)
       // Phase transitions to 'active' via the connectionState effect.
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to start next round')
       setPhase('error')
     }
-  }, [googleId, sessionId, roundResult, realtime])
+  }, [googleId, sessionId, roundResult, realtime, session])
 
   // ─── Render ──────────────────────────────────────────
 
@@ -402,6 +445,7 @@ export default function LiveInterviewPage() {
           weaknesses={roundResult.roundScore.weaknesses}
           feedback={roundResult.roundScore.feedback}
           hasNextRound={roundResult.hasNextRound}
+          testResults={lastSubmitResults}
           onNextRound={handleNextRound}
         />
       </div>
@@ -498,7 +542,46 @@ export default function LiveInterviewPage() {
         onEndRound={handleEndRound}
       />
 
-      {isCodingRound ? (
+      {hasCodingProblem ? (
+        /* CodeSignal-style layout: Problem+Chat | Editor | Tests */
+        <CodingInterviewLayout
+          problem={codingProblem}
+          exchanges={realtime.transcript}
+          aiPartialTranscript={realtime.aiPartialTranscript}
+          currentSpeaker={realtime.currentSpeaker}
+          language={codeLanguage}
+          code={code}
+          onCodeChange={setCode}
+          onLanguageChange={(lang) => {
+            setCodeLanguage(lang)
+            // Swap to starter code for new language if code is still default
+            if (codingProblem.starterCode?.[lang]) {
+              const currentDefault = codingProblem.starterCode?.[codeLanguage] || DEFAULT_CODE[codeLanguage]
+              if (!code || code === currentDefault) {
+                setCode(codingProblem.starterCode[lang])
+              }
+            }
+          }}
+          testResults={testRunner.testResults}
+          isRunningTests={testRunner.isRunning}
+          isSubmittingTests={testRunner.isSubmitting}
+          onRunTests={() => testRunner.runVisibleTests(codeLanguage, code)}
+          onSubmitTests={async () => {
+            const results = await testRunner.submitAllTests(codeLanguage, code)
+            setLastSubmitResults(results)
+            // Also add code submission to transcript
+            transcriptRef.current = [
+              ...transcriptRef.current,
+              {
+                role: 'candidate',
+                content: `[Code Submitted — ${codeLanguage}] ${results.passed}/${results.total} tests passed`,
+                timestamp: new Date().toISOString(),
+              },
+            ]
+          }}
+        />
+      ) : isCodingRound ? (
+        /* Legacy free-form coding layout (no structured problem) */
         <div className="flex-1 flex overflow-hidden">
           <div className="w-2/5 border-r border-[var(--border-color)]">
             <TranscriptPanel
@@ -518,7 +601,6 @@ export default function LiveInterviewPage() {
               onLanguageChange={setCodeLanguage}
               onRun={() => codeExec.runCode(codeLanguage, code)}
               onSubmit={() => {
-                // Add code as a special exchange in the transcript
                 transcriptRef.current = [
                   ...transcriptRef.current,
                   {
@@ -533,6 +615,7 @@ export default function LiveInterviewPage() {
           </div>
         </div>
       ) : (
+        /* Behavioral layout — full-width transcript */
         <TranscriptPanel
           exchanges={realtime.transcript}
           aiPartialTranscript={realtime.aiPartialTranscript}

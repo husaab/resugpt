@@ -2,6 +2,8 @@
  * Interview Session data types matching the backend schema
  */
 
+import type { CodingProblemFrontend, TestCaseResult } from './codingProblem'
+
 // ─── Shared Types ────────────────────────────────────────
 
 export type InterviewSessionStatus = 'in_progress' | 'completed' | 'abandoned'
@@ -20,6 +22,9 @@ export interface SessionRound {
   duration: number | null
   codeSubmission: string | null
   codeLanguage: string | null
+  codingProblemId: string | null
+  codingProblem: CodingProblemFrontend | null
+  testResults: TestCaseResult[] | null
 }
 
 export interface Exchange {

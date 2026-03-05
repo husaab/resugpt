@@ -39,6 +39,7 @@ interface CodeEditorPanelProps {
   onRun: () => void
   onSubmit: () => void
   onToggleOutput: () => void
+  hideActions?: boolean
 }
 
 export function CodeEditorPanel({
@@ -52,6 +53,7 @@ export function CodeEditorPanel({
   onRun,
   onSubmit,
   onToggleOutput,
+  hideActions,
 }: CodeEditorPanelProps) {
   const { resolvedTheme } = useTheme()
 
@@ -84,23 +86,25 @@ export function CodeEditorPanel({
           ))}
         </select>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onRun}
-            disabled={isRunning}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <PlayIcon className="w-4 h-4" />
-            {isRunning ? 'Running...' : 'Run Code'}
-          </button>
-          <button
-            onClick={onSubmit}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-[var(--accent-color)] text-white hover:opacity-90"
-          >
-            <PaperAirplaneIcon className="w-4 h-4" />
-            Submit
-          </button>
-        </div>
+        {!hideActions && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onRun}
+              disabled={isRunning}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <PlayIcon className="w-4 h-4" />
+              {isRunning ? 'Running...' : 'Run Code'}
+            </button>
+            <button
+              onClick={onSubmit}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-[var(--accent-color)] text-white hover:opacity-90"
+            >
+              <PaperAirplaneIcon className="w-4 h-4" />
+              Submit
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Monaco Editor */}
@@ -128,34 +132,36 @@ export function CodeEditorPanel({
         />
       </div>
 
-      {/* Output console */}
-      <div className="border-t border-[var(--border-color)] bg-[var(--bg-elevated)]">
-        <button
-          onClick={onToggleOutput}
-          className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-        >
-          <span>Output</span>
-          {isOutputExpanded ? (
-            <ChevronDownIcon className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronUpIcon className="w-3.5 h-3.5" />
-          )}
-        </button>
-
-        {isOutputExpanded && (
-          <div className="px-3 pb-3 max-h-48 overflow-y-auto">
-            {output ? (
-              <pre className="text-xs font-mono text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
-                {output}
-              </pre>
+      {/* Output console (hidden when actions are hidden — test panel replaces it) */}
+      {!hideActions && (
+        <div className="border-t border-[var(--border-color)] bg-[var(--bg-elevated)]">
+          <button
+            onClick={onToggleOutput}
+            className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            <span>Output</span>
+            {isOutputExpanded ? (
+              <ChevronDownIcon className="w-3.5 h-3.5" />
             ) : (
-              <p className="text-xs text-[var(--text-tertiary)] italic">
-                Run your code to see output here.
-              </p>
+              <ChevronUpIcon className="w-3.5 h-3.5" />
             )}
-          </div>
-        )}
-      </div>
+          </button>
+
+          {isOutputExpanded && (
+            <div className="px-3 pb-3 max-h-48 overflow-y-auto">
+              {output ? (
+                <pre className="text-xs font-mono text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
+                  {output}
+                </pre>
+              ) : (
+                <p className="text-xs text-[var(--text-tertiary)] italic">
+                  Run your code to see output here.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

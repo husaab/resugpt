@@ -281,6 +281,12 @@ export default function AdminPage() {
                 {pendingCount} pending
               </Badge>
             )}
+            <button
+              onClick={() => router.push('/admin/problems')}
+              className="ml-auto px-4 py-2 text-sm font-medium rounded-lg bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors"
+            >
+              Problem Bank
+            </button>
           </div>
         </motion.div>
 

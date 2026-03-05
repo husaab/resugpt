@@ -43,6 +43,7 @@ export interface InterviewRound {
   description: string;
   duration: number;
   questions: InterviewQuestion[];
+  codingProblemIds?: string[];
 }
 
 export interface InterviewQuestion {
