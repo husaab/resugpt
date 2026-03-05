@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 
-const PISTON_API = 'https://emkc.org/api/v2/piston/execute'
+const PISTON_API = '/api/execute'
 const EXECUTION_TIMEOUT = 15_000 // 15 seconds
 
 /** Maps our language names to Piston-recognized language identifiers. */

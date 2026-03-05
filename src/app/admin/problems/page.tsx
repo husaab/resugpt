@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip } from '@/components/ui/Tooltip'
 import {
   listCodingProblems,
   createCodingProblem,
@@ -25,10 +26,10 @@ import {
 } from '@/services/codingProblemsService'
 import type { CodingProblemRow, CodingProblem } from '@/types/codingProblem'
 
-const DIFFICULTY_VARIANT: Record<string, 'success' | 'warning' | 'destructive'> = {
+const DIFFICULTY_VARIANT: Record<string, 'success' | 'warning' | 'error'> = {
   easy: 'success',
   medium: 'warning',
-  hard: 'destructive',
+  hard: 'error',
 }
 
 export default function ProblemBankPage() {
@@ -139,7 +140,7 @@ export default function ProblemBankPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)] px-4 py-8">
+    <div className="min-h-screen bg-[var(--bg-body)] px-4 py-30">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -220,30 +221,37 @@ export default function ProblemBankPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => handleVerify(p.id)}
-                    disabled={verifyingId === p.id}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors text-[var(--text-tertiary)] hover:text-[var(--accent-color)] disabled:opacity-50"
-                    title="Verify (run reference solution)"
-                  >
-                    <BeakerIcon className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => router.push(`/admin/problems/${p.id}`)}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
-                    title="Edit"
-                  >
-                    <PencilSquareIcon className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    disabled={deletingId === p.id}
-                    className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-[var(--text-tertiary)] hover:text-red-400 disabled:opacity-50"
-                    title="Delete"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-1 ml-4">
+                  <Tooltip content="Verify — run reference solution against all test cases" position="top">
+                    <button
+                      onClick={() => handleVerify(p.id)}
+                      disabled={verifyingId === p.id}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors text-[var(--text-tertiary)] hover:text-[var(--accent-color)] disabled:opacity-50"
+                    >
+                      {verifyingId === p.id ? (
+                        <div className="w-4 h-4 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <BeakerIcon className="w-4 h-4" />
+                      )}
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Edit problem" position="top">
+                    <button
+                      onClick={() => router.push(`/admin/problems/${p.id}`)}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                    >
+                      <PencilSquareIcon className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Delete problem" position="top">
+                    <button
+                      onClick={() => handleDelete(p.id)}
+                      disabled={deletingId === p.id}
+                      className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-[var(--text-tertiary)] hover:text-red-400 disabled:opacity-50"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
                 </div>
               </motion.div>
             ))}

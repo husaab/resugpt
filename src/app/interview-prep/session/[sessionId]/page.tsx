@@ -267,7 +267,7 @@ export default function LiveInterviewPage() {
 
   // ─── End round ──────────────────────────────────────
 
-  const handleEndRound = useCallback(async () => {
+  const handleEndRound = useCallback(async (testResultsOverride?: { passed: number; total: number } | null) => {
     if (!googleId) return
 
     try {
@@ -282,7 +282,7 @@ export default function LiveInterviewPage() {
         elapsedSeconds,
         isCodingRound ? code : null,
         isCodingRound ? codeLanguage : null,
-        lastSubmitResults
+        testResultsOverride !== undefined ? testResultsOverride : lastSubmitResults
       )
 
       if (!result.success) {
@@ -569,7 +569,7 @@ export default function LiveInterviewPage() {
           onSubmitTests={async () => {
             const results = await testRunner.submitAllTests(codeLanguage, code)
             setLastSubmitResults(results)
-            // Also add code submission to transcript
+            // Add code submission to transcript
             transcriptRef.current = [
               ...transcriptRef.current,
               {
@@ -578,6 +578,8 @@ export default function LiveInterviewPage() {
                 timestamp: new Date().toISOString(),
               },
             ]
+            // Auto-end the round — pass results directly to avoid stale closure
+            handleEndRound(results)
           }}
         />
       ) : isCodingRound ? (
