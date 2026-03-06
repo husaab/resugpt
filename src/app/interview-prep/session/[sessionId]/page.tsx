@@ -9,7 +9,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
-import { InterviewHeader } from '@/components/interview-session/InterviewHeader'
+import { InterviewNavbar } from '@/components/interview-session/InterviewNavbar'
 import { MicCheckPanel } from '@/components/interview-session/MicCheckPanel'
 import { TranscriptPanel } from '@/components/interview-session/TranscriptPanel'
 import { AudioControls } from '@/components/interview-session/AudioControls'
@@ -216,7 +216,7 @@ export default function LiveInterviewPage() {
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (phase === 'active' || phase === 'connecting') {
+      if (phase === 'active' || phase === 'connecting' || phase === 'round-ending') {
         e.preventDefault()
       }
     }
@@ -224,7 +224,7 @@ export default function LiveInterviewPage() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [phase])
 
-  // ─── Immersive mode: hide navbar ─────────────────────
+  // ─── Immersive mode: hide root navbar ────────────────
 
   useEffect(() => {
     document.body.classList.add('interview-immersive')
@@ -355,181 +355,14 @@ export default function LiveInterviewPage() {
 
   // ─── Render ──────────────────────────────────────────
 
-  // Loading
-  if (phase === 'loading') {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-body)]">
-        <div className="animate-pulse text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--bg-muted)]" />
-          <div className="h-5 w-48 bg-[var(--bg-muted)] rounded mx-auto mb-2" />
-          <div className="h-4 w-32 bg-[var(--bg-muted)] rounded mx-auto" />
-        </div>
-      </div>
-    )
-  }
-
-  // Error
-  if (phase === 'error') {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-body)] px-4">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--error-light)] flex items-center justify-center">
-            <ExclamationTriangleIcon className="w-8 h-8 text-[var(--error)]" />
-          </div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            Something went wrong
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-6">{error}</p>
-          <div className="flex gap-3 justify-center">
-            <Button
-              variant="outline"
-              onClick={() => router.push('/interview-prep/history')}
-            >
-              Back to History
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => window.location.reload()}
-            >
-              <ArrowPathIcon className="w-4 h-4" />
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Mic check
-  if (phase === 'mic-check') {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-body)] px-4">
-        <MicCheckPanel
-          hasMicPermission={mic.hasMicPermission}
-          audioLevel={mic.audioLevel}
-          error={mic.error}
-          isConnecting={false}
-          onRequestMic={mic.requestMic}
-          onStartInterview={handleStartInterview}
-        />
-      </div>
-    )
-  }
-
-  // Connecting
-  if (phase === 'connecting') {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-body)]">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <div className="w-12 h-12 mx-auto mb-4 border-3 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[var(--text-secondary)]">Connecting to interviewer...</p>
-        </motion.div>
-      </div>
-    )
-  }
-
-  // Between rounds — show score card
-  if (phase === 'between-rounds' && roundResult) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-body)] px-4 overflow-y-auto py-8">
-        <RoundScoreCard
-          roundTitle={roundTitle}
-          roundType={roundType}
-          roundNumber={currentRoundNumber}
-          score={roundResult.roundScore.score}
-          strengths={roundResult.roundScore.strengths}
-          weaknesses={roundResult.roundScore.weaknesses}
-          feedback={roundResult.roundScore.feedback}
-          hasNextRound={roundResult.hasNextRound}
-          testResults={lastSubmitResults}
-          onNextRound={handleNextRound}
-        />
-      </div>
-    )
-  }
-
-  // Completed — show final summary
-  if (phase === 'completed' && roundResult) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-body)] px-4 overflow-y-auto py-8">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full text-center"
-        >
-          <div className="bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl p-8">
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
-              Interview Complete
-            </h2>
-
-            {/* Last round score */}
-            <div className="mb-4">
-              <p className="text-sm text-[var(--text-tertiary)] mb-1">Final Round Score</p>
-              <span
-                className="text-4xl font-bold"
-                style={{
-                  color:
-                    roundResult.roundScore.score >= 7
-                      ? 'var(--success)'
-                      : roundResult.roundScore.score >= 5
-                        ? 'var(--warning)'
-                        : 'var(--error)',
-                }}
-              >
-                {roundResult.roundScore.score}/10
-              </span>
-            </div>
-
-            {/* Overall score if available */}
-            {roundResult.overallScore != null && (
-              <div className="mb-4 p-4 bg-[var(--bg-muted)] rounded-xl">
-                <p className="text-sm text-[var(--text-tertiary)] mb-1">Overall Score</p>
-                <span
-                  className="text-3xl font-bold"
-                  style={{
-                    color:
-                      roundResult.overallScore >= 7
-                        ? 'var(--success)'
-                        : roundResult.overallScore >= 5
-                          ? 'var(--warning)'
-                          : 'var(--error)',
-                  }}
-                >
-                  {roundResult.overallScore}/10
-                </span>
-                {roundResult.recommendation && (
-                  <p className="text-sm text-[var(--text-secondary)] mt-1 capitalize">
-                    {roundResult.recommendation.replace(/_/g, ' ')}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full"
-              onClick={() => router.push(`/interview-prep/session/${sessionId}/results`)}
-            >
-              View Full Results
-            </Button>
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
-
-  // Active interview (also covers round-ending with overlay)
   return (
     <div className="fixed inset-0 flex flex-col bg-[var(--bg-body)]">
-      <InterviewHeader
-        companyName={session?.company.name || ''}
-        companyLogo={session?.company.logo || null}
-        roleTitle={session?.role.title || ''}
+      {/* Always-visible interview navbar */}
+      <InterviewNavbar
+        phase={phase}
+        companyName={session?.company.name}
+        companyLogo={session?.company.logo}
+        roleTitle={session?.role.title}
         roundNumber={currentRoundNumber}
         totalRounds={totalRounds}
         roundType={roundType}
@@ -539,111 +372,274 @@ export default function LiveInterviewPage() {
         connectionState={realtime.connectionState}
         isEndingRound={phase === 'round-ending'}
         onToggleMute={realtime.toggleMute}
-        onEndRound={handleEndRound}
+        onEndRound={() => handleEndRound()}
       />
 
-      {hasCodingProblem ? (
-        /* CodeSignal-style layout: Problem+Chat | Editor | Tests */
-        <CodingInterviewLayout
-          problem={codingProblem}
-          exchanges={realtime.transcript}
-          aiPartialTranscript={realtime.aiPartialTranscript}
-          currentSpeaker={realtime.currentSpeaker}
-          language={codeLanguage}
-          code={code}
-          onCodeChange={setCode}
-          onLanguageChange={(lang) => {
-            setCodeLanguage(lang)
-            // Swap to starter code for new language if code is still default
-            if (codingProblem.starterCode?.[lang]) {
-              const currentDefault = codingProblem.starterCode?.[codeLanguage] || DEFAULT_CODE[codeLanguage]
-              if (!code || code === currentDefault) {
-                setCode(codingProblem.starterCode[lang])
-              }
-            }
-          }}
-          testResults={testRunner.testResults}
-          isRunningTests={testRunner.isRunning}
-          isSubmittingTests={testRunner.isSubmitting}
-          onRunTests={() => testRunner.runVisibleTests(codeLanguage, code)}
-          onSubmitTests={async () => {
-            const results = await testRunner.submitAllTests(codeLanguage, code)
-            setLastSubmitResults(results)
-            // Add code submission to transcript
-            transcriptRef.current = [
-              ...transcriptRef.current,
-              {
-                role: 'candidate',
-                content: `[Code Submitted — ${codeLanguage}] ${results.passed}/${results.total} tests passed`,
-                timestamp: new Date().toISOString(),
-              },
-            ]
-            // Auto-end the round — pass results directly to avoid stale closure
-            handleEndRound(results)
-          }}
-        />
-      ) : isCodingRound ? (
-        /* Legacy free-form coding layout (no structured problem) */
-        <div className="flex-1 flex overflow-hidden">
-          <div className="w-2/5 border-r border-[var(--border-color)]">
+      {/* ── Phase content ───────────────────────────────── */}
+
+      {/* Loading */}
+      {phase === 'loading' && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-pulse text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--bg-muted)]" />
+            <div className="h-5 w-48 bg-[var(--bg-muted)] rounded mx-auto mb-2" />
+            <div className="h-4 w-32 bg-[var(--bg-muted)] rounded mx-auto" />
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {phase === 'error' && (
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--error-light)] flex items-center justify-center">
+              <ExclamationTriangleIcon className="w-8 h-8 text-[var(--error)]" />
+            </div>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+              Something went wrong
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">{error}</p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/interview-prep/history')}
+              >
+                Back to History
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => window.location.reload()}
+              >
+                <ArrowPathIcon className="w-4 h-4" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mic check */}
+      {phase === 'mic-check' && (
+        <div className="flex-1 flex items-center justify-center px-4">
+          <MicCheckPanel
+            hasMicPermission={mic.hasMicPermission}
+            audioLevel={mic.audioLevel}
+            error={mic.error}
+            isConnecting={false}
+            onRequestMic={mic.requestMic}
+            onStartInterview={handleStartInterview}
+          />
+        </div>
+      )}
+
+      {/* Connecting */}
+      {phase === 'connecting' && (
+        <div className="flex-1 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center"
+          >
+            <div className="w-12 h-12 mx-auto mb-4 border-3 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--text-secondary)]">Connecting to interviewer...</p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Between rounds — score card */}
+      {phase === 'between-rounds' && roundResult && (
+        <div className="flex-1 flex items-center justify-center px-4 overflow-y-auto py-8">
+          <RoundScoreCard
+            roundTitle={roundTitle}
+            roundType={roundType}
+            roundNumber={currentRoundNumber}
+            score={roundResult.roundScore.score}
+            strengths={roundResult.roundScore.strengths}
+            weaknesses={roundResult.roundScore.weaknesses}
+            feedback={roundResult.roundScore.feedback}
+            hasNextRound={roundResult.hasNextRound}
+            testResults={lastSubmitResults}
+            onNextRound={handleNextRound}
+          />
+        </div>
+      )}
+
+      {/* Completed — final summary */}
+      {phase === 'completed' && roundResult && (
+        <div className="flex-1 flex items-center justify-center px-4 overflow-y-auto py-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md w-full text-center"
+          >
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl p-8">
+              <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+                Interview Complete
+              </h2>
+
+              {/* Last round score */}
+              <div className="mb-4">
+                <p className="text-sm text-[var(--text-tertiary)] mb-1">Final Round Score</p>
+                <span
+                  className="text-4xl font-bold"
+                  style={{
+                    color:
+                      roundResult.roundScore.score >= 7
+                        ? 'var(--success)'
+                        : roundResult.roundScore.score >= 5
+                          ? 'var(--warning)'
+                          : 'var(--error)',
+                  }}
+                >
+                  {roundResult.roundScore.score}/10
+                </span>
+              </div>
+
+              {/* Overall score if available */}
+              {roundResult.overallScore != null && (
+                <div className="mb-4 p-4 bg-[var(--bg-muted)] rounded-xl">
+                  <p className="text-sm text-[var(--text-tertiary)] mb-1">Overall Score</p>
+                  <span
+                    className="text-3xl font-bold"
+                    style={{
+                      color:
+                        roundResult.overallScore >= 7
+                          ? 'var(--success)'
+                          : roundResult.overallScore >= 5
+                            ? 'var(--warning)'
+                            : 'var(--error)',
+                    }}
+                  >
+                    {roundResult.overallScore}/10
+                  </span>
+                  {roundResult.recommendation && (
+                    <p className="text-sm text-[var(--text-secondary)] mt-1 capitalize">
+                      {roundResult.recommendation.replace(/_/g, ' ')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                onClick={() => router.push(`/interview-prep/session/${sessionId}/results`)}
+              >
+                View Full Results
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Active interview (also covers round-ending with overlay) */}
+      {(phase === 'active' || phase === 'round-ending') && (
+        <>
+          {hasCodingProblem ? (
+            /* CodeSignal-style layout: Problem+Chat | Editor | Tests */
+            <CodingInterviewLayout
+              problem={codingProblem}
+              exchanges={realtime.transcript}
+              aiPartialTranscript={realtime.aiPartialTranscript}
+              currentSpeaker={realtime.currentSpeaker}
+              language={codeLanguage}
+              code={code}
+              onCodeChange={setCode}
+              onLanguageChange={(lang) => {
+                setCodeLanguage(lang)
+                // Swap to starter code for new language if code is still default
+                if (codingProblem.starterCode?.[lang]) {
+                  const currentDefault = codingProblem.starterCode?.[codeLanguage] || DEFAULT_CODE[codeLanguage]
+                  if (!code || code === currentDefault) {
+                    setCode(codingProblem.starterCode[lang])
+                  }
+                }
+              }}
+              testResults={testRunner.testResults}
+              isRunningTests={testRunner.isRunning}
+              isSubmittingTests={testRunner.isSubmitting}
+              onRunTests={() => testRunner.runVisibleTests(codeLanguage, code)}
+              onSubmitTests={async () => {
+                const results = await testRunner.submitAllTests(codeLanguage, code)
+                setLastSubmitResults(results)
+                // Add code submission to transcript
+                transcriptRef.current = [
+                  ...transcriptRef.current,
+                  {
+                    role: 'candidate',
+                    content: `[Code Submitted — ${codeLanguage}] ${results.passed}/${results.total} tests passed`,
+                    timestamp: new Date().toISOString(),
+                  },
+                ]
+                // Auto-end the round — pass results directly to avoid stale closure
+                handleEndRound(results)
+              }}
+            />
+          ) : isCodingRound ? (
+            /* Legacy free-form coding layout (no structured problem) */
+            <div className="flex-1 flex overflow-hidden">
+              <div className="w-2/5 border-r border-[var(--border-color)]">
+                <TranscriptPanel
+                  exchanges={realtime.transcript}
+                  aiPartialTranscript={realtime.aiPartialTranscript}
+                  currentSpeaker={realtime.currentSpeaker}
+                />
+              </div>
+              <div className="w-3/5">
+                <CodeEditorPanel
+                  language={codeLanguage}
+                  code={code}
+                  output={codeExec.output}
+                  isRunning={codeExec.isRunning}
+                  isOutputExpanded={isOutputExpanded}
+                  onCodeChange={setCode}
+                  onLanguageChange={setCodeLanguage}
+                  onRun={() => codeExec.runCode(codeLanguage, code)}
+                  onSubmit={() => {
+                    transcriptRef.current = [
+                      ...transcriptRef.current,
+                      {
+                        role: 'candidate',
+                        content: `[Code Submitted — ${codeLanguage}]\n${code}`,
+                        timestamp: new Date().toISOString(),
+                      },
+                    ]
+                  }}
+                  onToggleOutput={() => setIsOutputExpanded((prev) => !prev)}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Behavioral layout — full-width transcript */
             <TranscriptPanel
               exchanges={realtime.transcript}
               aiPartialTranscript={realtime.aiPartialTranscript}
               currentSpeaker={realtime.currentSpeaker}
             />
-          </div>
-          <div className="w-3/5">
-            <CodeEditorPanel
-              language={codeLanguage}
-              code={code}
-              output={codeExec.output}
-              isRunning={codeExec.isRunning}
-              isOutputExpanded={isOutputExpanded}
-              onCodeChange={setCode}
-              onLanguageChange={setCodeLanguage}
-              onRun={() => codeExec.runCode(codeLanguage, code)}
-              onSubmit={() => {
-                transcriptRef.current = [
-                  ...transcriptRef.current,
-                  {
-                    role: 'candidate',
-                    content: `[Code Submitted — ${codeLanguage}]\n${code}`,
-                    timestamp: new Date().toISOString(),
-                  },
-                ]
-              }}
-              onToggleOutput={() => setIsOutputExpanded((prev) => !prev)}
-            />
-          </div>
-        </div>
-      ) : (
-        /* Behavioral layout — full-width transcript */
-        <TranscriptPanel
-          exchanges={realtime.transcript}
-          aiPartialTranscript={realtime.aiPartialTranscript}
-          currentSpeaker={realtime.currentSpeaker}
-        />
-      )}
+          )}
 
-      <AudioControls
-        isMuted={realtime.isMuted}
-        connectionState={realtime.connectionState}
-        currentSpeaker={realtime.currentSpeaker}
-        onToggleMute={realtime.toggleMute}
-      />
+          <AudioControls
+            isMuted={realtime.isMuted}
+            connectionState={realtime.connectionState}
+            currentSpeaker={realtime.currentSpeaker}
+            onToggleMute={realtime.toggleMute}
+          />
 
-      {/* Scoring overlay */}
-      {phase === 'round-ending' && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center"
-          >
-            <div className="w-12 h-12 mx-auto mb-4 border-3 border-white border-t-transparent rounded-full animate-spin" />
-            <p className="text-white font-medium">Scoring your round...</p>
-          </motion.div>
-        </div>
+          {/* Scoring overlay */}
+          {phase === 'round-ending' && (
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center"
+              >
+                <div className="w-12 h-12 mx-auto mb-4 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                <p className="text-white font-medium">Scoring your round...</p>
+              </motion.div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

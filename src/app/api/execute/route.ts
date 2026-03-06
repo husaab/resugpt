@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PISTON_URL = process.env.PISTON_API_URL || 'http://localhost:2000/api/v2/execute'
+const PISTON_URL = process.env.PISTON_API_URL || 'http://138.197.164.4:2000/api/v2/execute'
 
 export async function POST(req: NextRequest) {
   try {

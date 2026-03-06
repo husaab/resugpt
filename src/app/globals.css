@@ -147,8 +147,8 @@ html {
   overflow-y: scroll;
 }
 
-/* Immersive mode: hide navbar/footer during live interview */
-body.interview-immersive nav,
+/* Immersive mode: hide root navbar/footer during live interview */
+body.interview-immersive nav:not(.interview-session-nav),
 body.interview-immersive footer {
   display: none !important;
 }
