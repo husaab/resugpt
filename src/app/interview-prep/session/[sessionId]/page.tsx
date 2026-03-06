@@ -53,8 +53,8 @@ export default function LiveInterviewPage() {
   const [roundResult, setRoundResult] = useState<EndRoundResponse['data'] | null>(null)
 
   // Code editor state (technical/coding rounds)
-  const [code, setCode] = useState(DEFAULT_CODE.javascript)
-  const [codeLanguage, setCodeLanguage] = useState('javascript')
+  const [code, setCode] = useState(DEFAULT_CODE.python)
+  const [codeLanguage, setCodeLanguage] = useState('python')
   const [isOutputExpanded, setIsOutputExpanded] = useState(false)
 
   // Coding problem state (CodeSignal-style rounds)
