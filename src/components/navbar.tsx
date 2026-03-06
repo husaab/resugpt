@@ -321,6 +321,11 @@ const appQAMenuItems: DropdownItem[] = [
   { label: 'My Q&A Sessions', href: '/application-qa', description: 'View saved sessions' },
 ]
 
+const interviewPrepMenuItems: DropdownItem[] = [
+  { label: 'Browse Roles', href: '/interview-prep', description: 'Find companies and roles' },
+  { label: 'My Sessions', href: '/interview-prep/history', description: 'View past interviews' },
+]
+
 export function Navbar() {
   const { data: session } = useSession()
   const { displayCredits, subscriptionStatus } = useCredits()
@@ -429,6 +434,7 @@ export function Navbar() {
                       <NavDropdown label="Resumes" items={resumeMenuItems} />
                       <NavDropdown label="Cover Letters" items={coverLetterMenuItems} />
                       <NavDropdown label="App Q&A" items={appQAMenuItems} />
+                      <NavDropdown label="Interview Prep" items={interviewPrepMenuItems} />
                       <NavLink href="/pricing">Pricing</NavLink>
                     </nav>
 
@@ -511,6 +517,7 @@ export function Navbar() {
                     <nav className="hidden sm:flex items-center gap-1">
                       <NavDropdown label="Resumes" items={resumeMenuItems} />
                       <NavDropdown label="Cover Letters" items={coverLetterMenuItems} />
+                      <NavLink href="/interview-prep">Interview Prep</NavLink>
                       <NavLink href="/pricing">Pricing</NavLink>
                     </nav>
                     <NavDivider />
@@ -602,10 +609,16 @@ export function Navbar() {
                         onItemClick={() => setMobileMenuOpen(false)}
                         index={2}
                       />
-                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={3}>
+                      <MobileNavSection
+                        label="Interview Prep"
+                        items={interviewPrepMenuItems}
+                        onItemClick={() => setMobileMenuOpen(false)}
+                        index={3}
+                      />
+                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={4}>
                         Pricing
                       </MobileNavLink>
-                      <MobileNavLink href="/settings" onClick={() => setMobileMenuOpen(false)} index={4}>
+                      <MobileNavLink href="/settings" onClick={() => setMobileMenuOpen(false)} index={5}>
                         Settings
                       </MobileNavLink>
                     </>
@@ -623,7 +636,10 @@ export function Navbar() {
                         onItemClick={() => setMobileMenuOpen(false)}
                         index={1}
                       />
-                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={2}>
+                      <MobileNavLink href="/interview-prep" onClick={() => setMobileMenuOpen(false)} index={2}>
+                        Interview Prep
+                      </MobileNavLink>
+                      <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)} index={3}>
                         Pricing
                       </MobileNavLink>
                     </>

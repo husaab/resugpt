@@ -15,6 +15,7 @@ export interface LoginResponse {
     subscriptionStatus: string;
     cancelAtPeriodEnd: boolean;
     subscriptionEndsAt: string | null;
+    isAdmin: boolean;
     createdAt: string;
   };
 }

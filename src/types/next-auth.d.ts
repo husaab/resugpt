@@ -13,6 +13,7 @@ declare module "next-auth" {
       subscriptionStatus: string
       cancelAtPeriodEnd: boolean
       subscriptionEndsAt: string | null
+      isAdmin: boolean
     }
   }
 
@@ -22,6 +23,7 @@ declare module "next-auth" {
     subscriptionStatus: string
     cancelAtPeriodEnd: boolean
     subscriptionEndsAt: string | null
+    isAdmin: boolean
   }
 }
 
@@ -32,5 +34,6 @@ declare module "next-auth/jwt" {
     subscriptionStatus: string
     cancelAtPeriodEnd: boolean
     subscriptionEndsAt: string | null
+    isAdmin: boolean
   }
 }

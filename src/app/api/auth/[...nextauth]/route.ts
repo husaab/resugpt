@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
                     token.subscriptionStatus = response.data.subscriptionStatus
                     token.cancelAtPeriodEnd = response.data.cancelAtPeriodEnd ?? false
                     token.subscriptionEndsAt = response.data.subscriptionEndsAt ?? null
+                    token.isAdmin = response.data.isAdmin ?? false
                 } catch (error) {
                     console.error('JWT callback error:', error)
                 }
@@ -50,6 +51,7 @@ export const authOptions: NextAuthOptions = {
                     token.subscriptionStatus = response.data.subscriptionStatus
                     token.cancelAtPeriodEnd = response.data.cancelAtPeriodEnd ?? false
                     token.subscriptionEndsAt = response.data.subscriptionEndsAt ?? null
+                    token.isAdmin = response.data.isAdmin ?? false
                 } catch (error) {
                     console.error('Session update error:', error)
                 }
@@ -64,6 +66,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.subscriptionStatus = token.subscriptionStatus as string
                 session.user.cancelAtPeriodEnd = token.cancelAtPeriodEnd as boolean
                 session.user.subscriptionEndsAt = token.subscriptionEndsAt as string | null
+                session.user.isAdmin = token.isAdmin as boolean
             }
             return session
         },
