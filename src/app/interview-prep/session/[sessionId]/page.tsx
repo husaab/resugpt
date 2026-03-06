@@ -53,8 +53,8 @@ export default function LiveInterviewPage() {
   const [roundResult, setRoundResult] = useState<EndRoundResponse['data'] | null>(null)
 
   // Code editor state (technical/coding rounds)
-  const [code, setCode] = useState(DEFAULT_CODE.javascript)
-  const [codeLanguage, setCodeLanguage] = useState('javascript')
+  const [code, setCode] = useState(DEFAULT_CODE.python)
+  const [codeLanguage, setCodeLanguage] = useState('python')
   const [isOutputExpanded, setIsOutputExpanded] = useState(false)
 
   // Coding problem state (CodeSignal-style rounds)
@@ -150,11 +150,11 @@ export default function LiveInterviewPage() {
           // Load coding problem if present
           if (currentRound.codingProblem) {
             setCodingProblem(currentRound.codingProblem)
-            // Set starter code for the default language
+            // Set starter code for the default language (Python)
             const starterCode = currentRound.codingProblem.starterCode
-            if (starterCode?.javascript) {
-              setCode(starterCode.javascript)
-              setCodeLanguage('javascript')
+            if (starterCode?.python) {
+              setCode(starterCode.python)
+              setCodeLanguage('python')
             }
           }
         }
@@ -312,8 +312,8 @@ export default function LiveInterviewPage() {
     try {
       setPhase('connecting')
       transcriptRef.current = []
-      setCode(DEFAULT_CODE.javascript)
-      setCodeLanguage('javascript')
+      setCode(DEFAULT_CODE.python)
+      setCodeLanguage('python')
       setIsOutputExpanded(false)
       setCodingProblem(null)
       setLastSubmitResults(null)
@@ -338,9 +338,9 @@ export default function LiveInterviewPage() {
         if (nextSessionRound?.codingProblem) {
           setCodingProblem(nextSessionRound.codingProblem)
           const starterCode = nextSessionRound.codingProblem.starterCode
-          if (starterCode?.javascript) {
-            setCode(starterCode.javascript)
-            setCodeLanguage('javascript')
+          if (starterCode?.python) {
+            setCode(starterCode.python)
+            setCodeLanguage('python')
           }
         }
       }
