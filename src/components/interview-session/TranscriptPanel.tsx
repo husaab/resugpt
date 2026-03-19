@@ -7,12 +7,14 @@ import type { Exchange, CurrentSpeaker } from '@/types/interviewRealtime'
 interface TranscriptPanelProps {
   exchanges: Exchange[]
   aiPartialTranscript: string
+  userPartialTranscript?: string
   currentSpeaker: CurrentSpeaker
 }
 
 export function TranscriptPanel({
   exchanges,
   aiPartialTranscript,
+  userPartialTranscript,
   currentSpeaker,
 }: TranscriptPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -20,7 +22,7 @@ export function TranscriptPanel({
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [exchanges, aiPartialTranscript, currentSpeaker])
+  }, [exchanges, aiPartialTranscript, userPartialTranscript, currentSpeaker])
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -60,22 +62,29 @@ export function TranscriptPanel({
           </div>
         ))}
 
-        {/* User speaking — live indicator bubble in the conversation flow */}
+        {/* User speaking — live transcript or soundbar indicator */}
         {currentSpeaker === 'candidate' && !aiPartialTranscript && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-[var(--accent-color)] text-white">
               <p className="text-xs font-medium text-white/70 mb-1">You</p>
-              <div className="flex items-center gap-2">
-                <MicrophoneIcon className="w-4 h-4 text-white/80 animate-pulse" />
-                <div className="flex items-center gap-1">
-                  <span className="w-1 h-3 bg-white/60 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite]" />
-                  <span className="w-1 h-5 bg-white/70 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.15s]" />
-                  <span className="w-1 h-3.5 bg-white/60 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.3s]" />
-                  <span className="w-1 h-4.5 bg-white/70 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.1s]" />
-                  <span className="w-1 h-3 bg-white/60 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.25s]" />
+              {userPartialTranscript ? (
+                <p className="text-sm leading-relaxed">
+                  {userPartialTranscript}
+                  <span className="inline-block w-1.5 h-4 bg-white/70 ml-0.5 animate-pulse rounded-sm" />
+                </p>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <MicrophoneIcon className="w-4 h-4 text-white/80 animate-pulse" />
+                  <div className="flex items-center gap-1">
+                    <span className="w-1 h-3 bg-white/60 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite]" />
+                    <span className="w-1 h-5 bg-white/70 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.15s]" />
+                    <span className="w-1 h-3.5 bg-white/60 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.3s]" />
+                    <span className="w-1 h-4.5 bg-white/70 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.1s]" />
+                    <span className="w-1 h-3 bg-white/60 rounded-full animate-[soundbar_0.6s_ease-in-out_infinite_0.25s]" />
+                  </div>
+                  <span className="text-sm text-white/80">Listening...</span>
                 </div>
-                <span className="text-sm text-white/80">Speaking...</span>
-              </div>
+              )}
             </div>
           </div>
         )}

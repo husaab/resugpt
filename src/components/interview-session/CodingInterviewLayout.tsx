@@ -13,6 +13,7 @@ interface CodingInterviewLayoutProps {
   // Chat / realtime
   exchanges: Exchange[]
   aiPartialTranscript: string
+  userPartialTranscript?: string
   currentSpeaker: CurrentSpeaker
 
   // Code editor
@@ -33,6 +34,7 @@ export function CodingInterviewLayout({
   problem,
   exchanges,
   aiPartialTranscript,
+  userPartialTranscript,
   currentSpeaker,
   language,
   code,
@@ -52,6 +54,7 @@ export function CodingInterviewLayout({
           problem={problem}
           exchanges={exchanges}
           aiPartialTranscript={aiPartialTranscript}
+          userPartialTranscript={userPartialTranscript}
           currentSpeaker={currentSpeaker}
         />
       </div>

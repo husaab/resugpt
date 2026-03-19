@@ -1,0 +1,85 @@
+using feature-dev and plan-mode, I want you to fully analyze our interview prep system and design a comprehensive Interview Replay & Analysis system. Analyze both the frontend and the backend (backend is at /Users/husseinsaab/Documents/GitHub/resugpt-backend/server.js).
+
+## What We're Building
+
+A replay analysis system that lets users re-experience their completed interviews with AI-powered moment-by-moment feedback. After an interview is done, the user should be able to:
+
+1. **Watch/listen to a timeline replay** of their entire interview — scrolling through the conversation with precise timestamps
+2. **See AI-highlighted "improvement moments"** — specific points in the interview where the user could have done better, with explanations of what went wrong and suggestions for what they should have said/done instead
+3. **Get moment-level annotations** — the AI should identify categories like:
+   - Weak answers (vague, off-topic, incomplete STAR responses)
+   - Missed follow-up opportunities
+   - Communication issues (filler words, long pauses, unclear explanations)
+   - Code quality moments (inefficient approach, missed edge cases, poor variable naming)
+   - Strong moments too (so users know what to keep doing)
+4. **Interactive timeline** — users can click on any highlighted moment to jump to that part of the transcript and see the detailed analysis
+5. **Improvement score tracking** — compare replay analyses across multiple sessions to show progress over time
+
+## Current System Architecture (for context)
+
+### Frontend (Next.js at /Users/husseinsaab/Documents/GitHub/resugpt)
+- **Session page**: `src/app/interview-prep/session/[sessionId]/page.tsx` — main interview orchestrator with phases: loading → mic-check → connecting → active → round-ending → between-rounds → completed
+- **Results page**: `src/app/interview-prep/session/[sessionId]/results/page.tsx` — currently shows overall score, recommendation, round scores, expandable round details
+- **History page**: `src/app/interview-prep/history/page.tsx` — lists past sessions
+- **Hooks**:
+  - `src/hooks/useRealtimeInterview.ts` — WebRTC + OpenAI Realtime API, manages transcript as `Exchange[]`
+  - `src/hooks/useCodeObserver.ts` — debounced code snapshots sent to AI
+  - `src/hooks/useTestRunner.ts` — Piston-based test execution
+  - `src/hooks/useMicCheck.ts` — audio level detection
+- **Types**:
+  - `src/types/interviewSession.ts` — `InterviewSession`, `SessionRound` (with exchanges, score, strengths, weaknesses, feedback, codeSubmission, testResults)
+  - `src/types/interviewRealtime.ts` — `Exchange { role, content, audioUrl?, timestamp }`, connection states, phase types
+  - `src/types/codingProblem.ts` — problem definitions, test cases
+- **Services**: `src/services/interviewSessionService.ts` — API calls for session CRUD, token minting, transcript saving, round ending, test running
+- **Components**: `src/components/interview-session/` — TranscriptPanel, CodeEditorPanel, RoundScoreCard, AudioControls, InterviewNavbar, etc.
+
+### Backend (Express at /Users/husseinsaab/Documents/GitHub/resugpt-backend)
+- **Interview session controller**: `controllers/interviewSession.controller.js` — CRUD for sessions
+- **Realtime controller**: `controllers/interviewRealtime.controller.js` — token minting, transcript saving, round ending (triggers GPT-4o scoring), test execution
+- **Scoring service**: `services/interviewScoring.service.js` — GPT-4o evaluation, hybrid scoring (40% test pass rate + 60% AI eval for coding rounds)
+- **Prompts service**: `services/interviewPrompts.service.js` — builds interviewer system prompts, scoring prompts, tool definitions
+- **Database**: Supabase PostgreSQL with sessions stored as JSONB (rounds array with exchanges, scores, code, test results)
+- **Key data already stored per round**:
+  - `exchanges[]` — full transcript with role + content + timestamp
+  - `score` (1-10), `strengths[]`, `weaknesses[]`, `feedback`
+  - `codeSubmission`, `codeLanguage`, `testResults`
+  - `duration` (seconds)
+  - `codingProblem` (if applicable)
+
+### What's NOT Currently Captured
+- No audio recording (OpenAI Realtime handles audio in-flight but we don't save it)
+- No granular timestamp-to-moment mapping (exchanges have timestamps but no sub-exchange analysis)
+- No code evolution history (only final code submission saved, not intermediate snapshots)
+- No "improvement moment" detection — scoring is round-level only, not moment-level
+
+## Design Considerations
+
+- The replay analysis should work with the data we already have (transcripts, scores) but we should also consider what additional data to capture going forward
+- The AI analysis should happen asynchronously after the interview completes (not blocking the user)
+- Consider whether to store analysis results in the existing session JSONB or create a separate table
+- The timeline UI should feel like reviewing a recording, even if we're replaying text (think: Loom-style timeline with markers)
+- Code replay should show the evolution of code if we start capturing snapshots
+- Consider the cost implications of running detailed GPT-4o analysis on every exchange
+- The system should work for both behavioral and coding rounds (different analysis criteria)
+
+## Files to Analyze
+
+**Frontend (primary):**
+- `src/app/interview-prep/session/[sessionId]/page.tsx`
+- `src/app/interview-prep/session/[sessionId]/results/page.tsx`
+- `src/app/interview-prep/history/page.tsx`
+- `src/hooks/useRealtimeInterview.ts`
+- `src/hooks/useCodeObserver.ts`
+- `src/types/interviewSession.ts`
+- `src/types/interviewRealtime.ts`
+- `src/services/interviewSessionService.ts`
+- `src/components/interview-session/` (all files)
+
+**Backend:**
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/server.js`
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/controllers/interviewSession.controller.js`
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/controllers/interviewRealtime.controller.js`
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/services/interviewScoring.service.js`
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/services/interviewPrompts.service.js`
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/queries/interviewSession.queries.js`
+- `/Users/husseinsaab/Documents/GitHub/resugpt-backend/queries/interviewRealtime.queries.js`

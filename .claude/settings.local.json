@@ -15,7 +15,8 @@
       "Bash(npx tsc:*)",
       "Bash(echo:*)",
       "WebFetch(domain:www.glassdoor.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(wc:*)"
     ],
     "deny": []
   }

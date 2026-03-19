@@ -7,6 +7,7 @@ import type {
   UseRealtimeInterviewOptions,
   UseRealtimeInterviewReturn,
   RealtimeDataChannelEvent,
+  CodeContextSnapshot,
   Exchange,
 } from '@/types/interviewRealtime'
 
@@ -20,6 +21,7 @@ export function useRealtimeInterview(
   const [transcript, setTranscript] = useState<Exchange[]>([])
   const [currentSpeaker, setCurrentSpeaker] = useState<CurrentSpeaker>(null)
   const [aiPartialTranscript, setAiPartialTranscript] = useState('')
+  const [userPartialTranscript, setUserPartialTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -29,8 +31,9 @@ export function useRealtimeInterview(
   const optionsRef = useRef(options)
   optionsRef.current = options
 
-  // Track partial AI text per item_id to handle streaming
+  // Track partial text per item_id to handle streaming
   const aiPartialRef = useRef('')
+  const userPartialRef = useRef('')
 
   const connect = useCallback(async (ephemeralToken: string) => {
     try {
@@ -38,7 +41,9 @@ export function useRealtimeInterview(
       setError(null)
       setTranscript([])
       setAiPartialTranscript('')
+      setUserPartialTranscript('')
       aiPartialRef.current = ''
+      userPartialRef.current = ''
 
       // 1. Create peer connection
       const pc = new RTCPeerConnection()
@@ -63,11 +68,13 @@ export function useRealtimeInterview(
       dcRef.current = dc
 
       dc.onopen = () => {
+        console.log('[Realtime] Data channel opened')
         setConnectionState('connected')
 
         // Prompt the model to start its greeting immediately.
         // Without this, the Realtime API waits for user speech (VAD) before responding.
         dc.send(JSON.stringify({ type: 'response.create' }))
+        console.log('[Realtime] Sent response.create')
       }
 
       dc.onclose = () => {
@@ -77,6 +84,7 @@ export function useRealtimeInterview(
       dc.onmessage = (e) => {
         try {
           const event = JSON.parse(e.data) as RealtimeDataChannelEvent
+          console.log('[Realtime] Event:', event.type, event)
           handleDataChannelEvent(event)
         } catch {
           // Ignore unparseable events
@@ -98,14 +106,18 @@ export function useRealtimeInterview(
       })
 
       if (!sdpResponse.ok) {
+        const errBody = await sdpResponse.text()
+        console.error('[Realtime] SDP negotiation failed:', sdpResponse.status, errBody)
         throw new Error(`WebRTC negotiation failed: ${sdpResponse.status}`)
       }
 
+      console.log('[Realtime] SDP exchange successful')
       const answerSdp = await sdpResponse.text()
       await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
 
       // Handle connection state changes
       pc.onconnectionstatechange = () => {
+        console.log('[Realtime] Connection state:', pc.connectionState)
         switch (pc.connectionState) {
           case 'connected':
             setConnectionState('connected')
@@ -125,7 +137,14 @@ export function useRealtimeInterview(
 
   const handleDataChannelEvent = useCallback((event: RealtimeDataChannelEvent) => {
     switch (event.type) {
-      // User's speech transcribed
+      // User's speech streaming (real-time partial transcript)
+      case 'conversation.item.input_audio_transcription.delta': {
+        userPartialRef.current += event.delta
+        setUserPartialTranscript(userPartialRef.current)
+        break
+      }
+
+      // User's speech transcribed (final)
       case 'conversation.item.input_audio_transcription.completed': {
         if (event.transcript?.trim()) {
           const exchange: Exchange = {
@@ -139,6 +158,8 @@ export function useRealtimeInterview(
             return next
           })
         }
+        userPartialRef.current = ''
+        setUserPartialTranscript('')
         break
       }
 
@@ -211,6 +232,7 @@ export function useRealtimeInterview(
 
       // Error from the realtime session
       case 'error': {
+        console.error('[Realtime] ERROR details:', JSON.stringify(event, null, 2))
         setError(event.error?.message || 'Realtime session error')
         break
       }
@@ -237,7 +259,9 @@ export function useRealtimeInterview(
     setConnectionState('disconnected')
     setCurrentSpeaker(null)
     setAiPartialTranscript('')
+    setUserPartialTranscript('')
     aiPartialRef.current = ''
+    userPartialRef.current = ''
   }, [])
 
   const toggleMute = useCallback(() => {
@@ -249,6 +273,31 @@ export function useRealtimeInterview(
 
     audioTrack.enabled = !audioTrack.enabled
     setIsMuted(!audioTrack.enabled)
+  }, [])
+
+  const sendCodeContext = useCallback((snapshot: CodeContextSnapshot) => {
+    const dc = dcRef.current
+    if (!dc || dc.readyState !== 'open') return
+
+    // Truncate very long code to avoid hitting token limits
+    const MAX_CODE_LENGTH = 15_000
+    let codeText = snapshot.code
+    if (codeText.length > MAX_CODE_LENGTH) {
+      codeText = codeText.slice(0, MAX_CODE_LENGTH) + '\n// ... (code truncated)'
+    }
+
+    const preamble = snapshot.isFirstSnapshot
+      ? `[CODE UPDATE] The candidate's current code (${snapshot.language}):`
+      : `[CODE UPDATE] The candidate has updated their code (${snapshot.language}):`
+
+    dc.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: `${preamble}\n\`\`\`${snapshot.language}\n${codeText}\n\`\`\`` }],
+      },
+    }))
   }, [])
 
   // Cleanup on unmount
@@ -267,9 +316,11 @@ export function useRealtimeInterview(
     transcript,
     currentSpeaker,
     aiPartialTranscript,
+    userPartialTranscript,
     error,
     connect,
     disconnect,
     toggleMute,
+    sendCodeContext,
   }
 }

@@ -18,6 +18,7 @@ import { CodeEditorPanel, DEFAULT_CODE } from '@/components/interview-session/Co
 import { CodingInterviewLayout } from '@/components/interview-session/CodingInterviewLayout'
 import { useMicCheck } from '@/hooks/useMicCheck'
 import { useRealtimeInterview } from '@/hooks/useRealtimeInterview'
+import { useCodeObserver } from '@/hooks/useCodeObserver'
 import { useCodeExecution } from '@/hooks/useCodeExecution'
 import { useTestRunner } from '@/hooks/useTestRunner'
 import {
@@ -90,6 +91,21 @@ export default function LiveInterviewPage() {
     onTranscriptUpdate: (exchanges) => {
       transcriptRef.current = exchanges
     },
+  })
+
+  // Code observer — sends code snapshots to the AI during coding rounds
+  const handleCodeSnapshot = useCallback((snapshot: { code: string; language: string; isFirstSnapshot: boolean }) => {
+    if (realtime.currentSpeaker !== null) return
+    realtime.sendCodeContext(snapshot)
+  }, [realtime])
+
+  useCodeObserver({
+    code,
+    language: codeLanguage,
+    enabled: phase === 'active' && isCodingRound,
+    onCodeSnapshot: handleCodeSnapshot,
+    debounceMs: 6000,
+    starterCode: codingProblem?.starterCode?.[codeLanguage] || DEFAULT_CODE[codeLanguage],
   })
 
   // ─── Transition to active once data channel is open ──
@@ -542,6 +558,7 @@ export default function LiveInterviewPage() {
               problem={codingProblem}
               exchanges={realtime.transcript}
               aiPartialTranscript={realtime.aiPartialTranscript}
+              userPartialTranscript={realtime.userPartialTranscript}
               currentSpeaker={realtime.currentSpeaker}
               language={codeLanguage}
               code={code}
@@ -583,6 +600,7 @@ export default function LiveInterviewPage() {
                 <TranscriptPanel
                   exchanges={realtime.transcript}
                   aiPartialTranscript={realtime.aiPartialTranscript}
+                  userPartialTranscript={realtime.userPartialTranscript}
                   currentSpeaker={realtime.currentSpeaker}
                 />
               </div>
@@ -615,6 +633,7 @@ export default function LiveInterviewPage() {
             <TranscriptPanel
               exchanges={realtime.transcript}
               aiPartialTranscript={realtime.aiPartialTranscript}
+              userPartialTranscript={realtime.userPartialTranscript}
               currentSpeaker={realtime.currentSpeaker}
             />
           )}

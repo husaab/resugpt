@@ -13,6 +13,7 @@ interface ProblemStatementPanelProps {
   problem: CodingProblemFrontend
   exchanges: Exchange[]
   aiPartialTranscript: string
+  userPartialTranscript?: string
   currentSpeaker: CurrentSpeaker
 }
 
@@ -28,6 +29,7 @@ export function ProblemStatementPanel({
   problem,
   exchanges,
   aiPartialTranscript,
+  userPartialTranscript,
   currentSpeaker,
 }: ProblemStatementPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('problem')
@@ -176,6 +178,7 @@ export function ProblemStatementPanel({
         <TranscriptPanel
           exchanges={exchanges}
           aiPartialTranscript={aiPartialTranscript}
+          userPartialTranscript={userPartialTranscript}
           currentSpeaker={currentSpeaker}
         />
       )}

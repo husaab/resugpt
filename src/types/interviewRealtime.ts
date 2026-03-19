@@ -70,6 +70,13 @@ export interface SaveTranscriptResponse {
 
 // ─── Data Channel Event Types (from OpenAI Realtime API) ──
 
+export interface TranscriptionDeltaEvent {
+  type: 'conversation.item.input_audio_transcription.delta'
+  item_id: string
+  content_index: number
+  delta: string
+}
+
 export interface TranscriptionEvent {
   type: 'conversation.item.input_audio_transcription.completed'
   item_id: string
@@ -127,6 +134,7 @@ export interface RealtimeErrorEvent {
 }
 
 export type RealtimeDataChannelEvent =
+  | TranscriptionDeltaEvent
   | TranscriptionEvent
   | ResponseAudioTranscriptDelta
   | ResponseAudioTranscriptDone
@@ -144,16 +152,24 @@ export interface UseRealtimeInterviewOptions {
   onTranscriptUpdate?: (exchanges: Exchange[]) => void
 }
 
+export interface CodeContextSnapshot {
+  code: string
+  language: string
+  isFirstSnapshot: boolean
+}
+
 export interface UseRealtimeInterviewReturn {
   connectionState: RealtimeConnectionState
   isMuted: boolean
   transcript: Exchange[]
   currentSpeaker: CurrentSpeaker
   aiPartialTranscript: string
+  userPartialTranscript: string
   error: string | null
   connect: (token: string) => Promise<void>
   disconnect: () => void
   toggleMute: () => void
+  sendCodeContext: (snapshot: CodeContextSnapshot) => void
 }
 
 export interface UseMicCheckReturn {
