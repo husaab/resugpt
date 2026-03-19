@@ -13,6 +13,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   BriefcaseIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -182,11 +183,19 @@ export default function InterviewHistoryPage() {
             <h1 className="text-3xl font-bold text-[var(--text-primary)]">
               Interview History
             </h1>
-            <Link href="/interview-prep">
-              <Button variant="outline" size="md">
-                Browse Roles
-              </Button>
-            </Link>
+            <div className="flex gap-3">
+              <Link href="/interview-prep/progress">
+                <Button variant="outline" size="md">
+                  <ChartBarIcon className="w-4 h-4" />
+                  Progress
+                </Button>
+              </Link>
+              <Link href="/interview-prep">
+                <Button variant="outline" size="md">
+                  Browse Roles
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Toolbar: Search + Status Filter + Sort */}

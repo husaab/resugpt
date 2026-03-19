@@ -26,12 +26,15 @@ import {
   mintEphemeralToken,
   saveTranscript,
   endRound as endRoundApi,
+  saveCodeSnapshots,
+  uploadRoundAudio,
 } from '@/services/interviewSessionService'
 import type { InterviewSession } from '@/types/interviewSession'
-import type { InterviewPhase, EndRoundResponse } from '@/types/interviewRealtime'
+import type { InterviewPhase, EndRoundResponse, CodeContextSnapshot } from '@/types/interviewRealtime'
 import type { CodingProblemFrontend } from '@/types/codingProblem'
 
 const TRANSCRIPT_SAVE_INTERVAL = 30_000 // 30 seconds
+const CODE_RESPONSE_INTERVAL_MS = 45_000 // 45 seconds between proactive AI comments on code
 
 export default function LiveInterviewPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -65,6 +68,9 @@ export default function LiveInterviewPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const transcriptRef = useRef<{ role: 'interviewer' | 'candidate'; content: string; timestamp: string }[]>([])
+  const lastCodeResponseTriggerRef = useRef<number>(0)
+  const pendingSnapshotRef = useRef<CodeContextSnapshot | null>(null)
+  const snapshotQueueRef = useRef<Array<{ code: string; language: string; capturedAt: string }>>([])
 
   const googleId = authSession?.user?.googleId
   const isCodingRound = ['technical', 'coding', 'live_coding'].includes(roundType)
@@ -94,10 +100,38 @@ export default function LiveInterviewPage() {
   })
 
   // Code observer — sends code snapshots to the AI during coding rounds
-  const handleCodeSnapshot = useCallback((snapshot: { code: string; language: string; isFirstSnapshot: boolean }) => {
-    if (realtime.currentSpeaker !== null) return
-    realtime.sendCodeContext(snapshot)
+  const sendSnapshot = useCallback((snapshot: CodeContextSnapshot) => {
+    const now = Date.now()
+    const elapsed = now - lastCodeResponseTriggerRef.current
+    const shouldTrigger = snapshot.isFirstSnapshot || elapsed >= CODE_RESPONSE_INTERVAL_MS
+
+    realtime.sendCodeContext(snapshot, shouldTrigger)
+    if (shouldTrigger) lastCodeResponseTriggerRef.current = now
   }, [realtime])
+
+  const handleCodeSnapshot = useCallback((snapshot: CodeContextSnapshot) => {
+    // Queue snapshot for persistence (saved at round end)
+    snapshotQueueRef.current.push({
+      code: snapshot.code,
+      language: snapshot.language,
+      capturedAt: new Date().toISOString(),
+    })
+
+    if (realtime.currentSpeaker !== null) {
+      pendingSnapshotRef.current = snapshot // queue instead of dropping
+      return
+    }
+    sendSnapshot(snapshot)
+  }, [realtime.currentSpeaker, sendSnapshot])
+
+  // Flush queued snapshot when speaking stops
+  useEffect(() => {
+    if (realtime.currentSpeaker === null && pendingSnapshotRef.current) {
+      const snapshot = pendingSnapshotRef.current
+      pendingSnapshotRef.current = null
+      sendSnapshot(snapshot)
+    }
+  }, [realtime.currentSpeaker, sendSnapshot])
 
   useCodeObserver({
     code,
@@ -288,6 +322,9 @@ export default function LiveInterviewPage() {
 
     try {
       setPhase('round-ending')
+
+      // Stop audio recording BEFORE disconnecting (captures final chunks)
+      const audioBlobs = await realtime.stopRecording()
       realtime.disconnect()
 
       const result = await endRoundApi(
@@ -305,6 +342,24 @@ export default function LiveInterviewPage() {
         setError('Failed to score round')
         setPhase('error')
         return
+      }
+
+      // Upload audio recordings (non-critical, fire-and-forget)
+      if (audioBlobs.userAudio || audioBlobs.aiAudio) {
+        console.info('[Audio] Uploading audio — user:', audioBlobs.userAudio?.size, 'bytes, ai:', audioBlobs.aiAudio?.size, 'bytes')
+        uploadRoundAudio(sessionId, googleId, currentRoundNumber, audioBlobs.userAudio, audioBlobs.aiAudio)
+          .then((res) => console.info('[Audio] Upload result:', res))
+          .catch((err) => console.error('[Audio] Upload failed:', err))
+      } else {
+        console.warn('[Audio] No audio blobs to upload')
+      }
+
+      // Save code snapshots (non-critical, fire-and-forget)
+      if (snapshotQueueRef.current.length > 0) {
+        const snapshots = [...snapshotQueueRef.current]
+        snapshotQueueRef.current = []
+        saveCodeSnapshots(sessionId, googleId, currentRoundNumber, snapshots)
+          .catch(() => {})
       }
 
       setRoundResult(result.data)
@@ -328,6 +383,7 @@ export default function LiveInterviewPage() {
     try {
       setPhase('connecting')
       transcriptRef.current = []
+      snapshotQueueRef.current = []
       setCode(DEFAULT_CODE.python)
       setCodeLanguage('python')
       setIsOutputExpanded(false)

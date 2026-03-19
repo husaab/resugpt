@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -13,12 +13,15 @@ import {
   ExclamationTriangleIcon,
   BriefcaseIcon,
   PlayIcon,
+  LightBulbIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ROUND_TYPE_VARIANT } from '@/components/interview-prep/RoleDetailsContent'
-import { getInterviewSession } from '@/services/interviewSessionService'
-import type { InterviewSession, SessionRound } from '@/types/interviewSession'
+import { AnalysisPendingBanner } from '@/components/interview-replay/AnalysisPendingBanner'
+import { getInterviewSession, getAnalysis } from '@/services/interviewSessionService'
+import type { InterviewSession } from '@/types/interviewSession'
+import type { InterviewAnalysis } from '@/types/interviewAnalysis'
 
 const RECOMMENDATION_CONFIG: Record<string, { label: string; variant: 'success' | 'primary' | 'warning' | 'error' }> = {
   strong_hire: { label: 'Strong Hire', variant: 'success' },
@@ -27,10 +30,22 @@ const RECOMMENDATION_CONFIG: Record<string, { label: string; variant: 'success' 
   no_hire: { label: 'No Hire', variant: 'error' },
 }
 
+const SKILL_BADGE_VARIANT: Record<string, 'primary' | 'success' | 'warning' | 'error' | 'default'> = {
+  communication: 'primary',
+  problem_solving: 'warning',
+  technical_depth: 'success',
+  behavioral_examples: 'default',
+  code_quality: 'error',
+}
+
 function scoreColor(score: number): string {
   if (score >= 7) return 'var(--success)'
   if (score >= 5) return 'var(--warning)'
   return 'var(--error)'
+}
+
+function formatSkillCategory(category: string): string {
+  return category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 export default function ResultsPage() {
@@ -43,6 +58,10 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null)
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set())
   const [expandedTranscripts, setExpandedTranscripts] = useState<Set<number>>(new Set())
+
+  // Analysis state
+  const [analysis, setAnalysis] = useState<InterviewAnalysis | null>(null)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const googleId = authSession?.user?.googleId
 
@@ -84,6 +103,46 @@ export default function ResultsPage() {
     load()
     return () => { cancelled = true }
   }, [googleId, sessionId, router])
+
+  // Fetch analysis after session loads
+  useEffect(() => {
+    if (!session || !googleId || !sessionId) return
+
+    getAnalysis(sessionId, googleId)
+      .then((res) => {
+        if (res.success) setAnalysis(res.data)
+      })
+      .catch(() => {})
+  }, [session, googleId, sessionId])
+
+  // Poll while analysis is pending/processing
+  useEffect(() => {
+    if (!analysis || analysis.status === 'completed' || analysis.status === 'failed') {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      return
+    }
+
+    if (!googleId || !sessionId) return
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await getAnalysis(sessionId, googleId)
+        if (res.success) setAnalysis(res.data)
+      } catch {
+        // ignore polling errors
+      }
+    }, 5000)
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+  }, [analysis?.status, googleId, sessionId])
 
   const toggleRound = (n: number) => {
     setExpandedRounds((prev) => {
@@ -207,6 +266,48 @@ export default function ResultsPage() {
             </p>
           )}
         </motion.div>
+
+        {/* AI Analysis Preview */}
+        {analysis && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
+          >
+            {analysis.status === 'completed' && analysis.topImprovements.length > 0 ? (
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <LightBulbIcon className="w-5 h-5 text-[var(--warning)]" />
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    Top Improvement Moments
+                  </h3>
+                </div>
+                <div className="space-y-2.5">
+                  {analysis.topImprovements.map((tip, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-[var(--warning-light)] border border-[var(--warning)]/15"
+                    >
+                      <Badge
+                        variant={SKILL_BADGE_VARIANT[tip.skillCategory] || 'default'}
+                        size="sm"
+                        className="shrink-0 mt-0.5"
+                      >
+                        {formatSkillCategory(tip.skillCategory)}
+                      </Badge>
+                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                        {tip.tip}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <AnalysisPendingBanner status={analysis.status} />
+            )}
+          </motion.div>
+        )}
 
         {/* Per-round results */}
         <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Round Results</h2>
@@ -345,10 +446,15 @@ export default function ResultsPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <Link href={`/interview-prep/session/${sessionId}/replay`}>
+            <Button variant="primary" size="md">
+              <PlayIcon className="w-4 h-4" />
+              View Replay & Analysis
+            </Button>
+          </Link>
           <Link href={`/interview-prep/${session.company.id}/roles/${session.role.id}/briefing`}>
             <Button variant="outline" size="md">
-              <PlayIcon className="w-4 h-4" />
               Practice Again
             </Button>
           </Link>

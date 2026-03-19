@@ -35,6 +35,12 @@ export function useRealtimeInterview(
   const aiPartialRef = useRef('')
   const userPartialRef = useRef('')
 
+  // Audio recording refs
+  const userRecorderRef = useRef<MediaRecorder | null>(null)
+  const aiRecorderRef = useRef<MediaRecorder | null>(null)
+  const userChunksRef = useRef<Blob[]>([])
+  const aiChunksRef = useRef<Blob[]>([])
+
   const connect = useCallback(async (ephemeralToken: string) => {
     try {
       setConnectionState('connecting')
@@ -49,32 +55,79 @@ export function useRealtimeInterview(
       const pc = new RTCPeerConnection()
       pcRef.current = pc
 
-      // 2. Set up remote audio playback
+      // 2. Set up remote audio playback + recording
       const audioEl = document.createElement('audio')
       audioEl.autoplay = true
       audioElRef.current = audioEl
 
       pc.ontrack = (e) => {
         audioEl.srcObject = e.streams[0]
+
+        // Start recording AI audio
+        try {
+          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : MediaRecorder.isTypeSupported('audio/webm')
+              ? 'audio/webm'
+              : ''
+
+          if (mimeType) {
+            const aiRecorder = new MediaRecorder(e.streams[0], { mimeType })
+            aiChunksRef.current = []
+            aiRecorder.ondataavailable = (ev) => {
+              if (ev.data.size > 0) aiChunksRef.current.push(ev.data)
+            }
+            aiRecorder.onerror = (ev) => console.warn('[Audio] AI recorder error:', ev)
+            aiRecorder.start(1000)
+            aiRecorderRef.current = aiRecorder
+            console.info('[Audio] AI recorder started, mimeType:', mimeType)
+          } else {
+            console.warn('[Audio] No supported mimeType for AI audio recording')
+          }
+        } catch (err) {
+          console.warn('[Audio] Failed to start AI recorder:', err)
+        }
       }
 
-      // 3. Add local audio track
+      // 3. Add local audio track + start recording user audio
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       localStreamRef.current = stream
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
+
+      try {
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : ''
+
+        if (mimeType) {
+          const userRecorder = new MediaRecorder(stream, { mimeType })
+          userChunksRef.current = []
+          userRecorder.ondataavailable = (ev) => {
+            if (ev.data.size > 0) userChunksRef.current.push(ev.data)
+          }
+          userRecorder.onerror = (ev) => console.warn('[Audio] User recorder error:', ev)
+          userRecorder.start(1000)
+          userRecorderRef.current = userRecorder
+          console.info('[Audio] User recorder started, mimeType:', mimeType)
+        } else {
+          console.warn('[Audio] No supported mimeType for user audio recording')
+        }
+      } catch (err) {
+        console.warn('[Audio] Failed to start user recorder:', err)
+      }
 
       // 4. Create data channel for events
       const dc = pc.createDataChannel('oai-events')
       dcRef.current = dc
 
       dc.onopen = () => {
-        console.log('[Realtime] Data channel opened')
         setConnectionState('connected')
 
         // Prompt the model to start its greeting immediately.
         // Without this, the Realtime API waits for user speech (VAD) before responding.
         dc.send(JSON.stringify({ type: 'response.create' }))
-        console.log('[Realtime] Sent response.create')
       }
 
       dc.onclose = () => {
@@ -84,7 +137,6 @@ export function useRealtimeInterview(
       dc.onmessage = (e) => {
         try {
           const event = JSON.parse(e.data) as RealtimeDataChannelEvent
-          console.log('[Realtime] Event:', event.type, event)
           handleDataChannelEvent(event)
         } catch {
           // Ignore unparseable events
@@ -106,18 +158,14 @@ export function useRealtimeInterview(
       })
 
       if (!sdpResponse.ok) {
-        const errBody = await sdpResponse.text()
-        console.error('[Realtime] SDP negotiation failed:', sdpResponse.status, errBody)
         throw new Error(`WebRTC negotiation failed: ${sdpResponse.status}`)
       }
 
-      console.log('[Realtime] SDP exchange successful')
       const answerSdp = await sdpResponse.text()
       await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
 
       // Handle connection state changes
       pc.onconnectionstatechange = () => {
-        console.log('[Realtime] Connection state:', pc.connectionState)
         switch (pc.connectionState) {
           case 'connected':
             setConnectionState('connected')
@@ -232,11 +280,61 @@ export function useRealtimeInterview(
 
       // Error from the realtime session
       case 'error': {
-        console.error('[Realtime] ERROR details:', JSON.stringify(event, null, 2))
         setError(event.error?.message || 'Realtime session error')
         break
       }
     }
+  }, [])
+
+  /**
+   * Stop audio recorders and return the accumulated blobs.
+   * Must be called BEFORE disconnect() to capture the final audio chunks.
+   */
+  const stopRecording = useCallback((): Promise<{
+    userAudio: Blob | null
+    aiAudio: Blob | null
+  }> => {
+    console.info('[Audio] stopRecording called. User recorder state:', userRecorderRef.current?.state ?? 'null',
+      '| AI recorder state:', aiRecorderRef.current?.state ?? 'null',
+      '| User chunks:', userChunksRef.current.length,
+      '| AI chunks:', aiChunksRef.current.length)
+
+    return new Promise((resolve) => {
+      let pending = 0
+      const tryResolve = () => {
+        if (--pending <= 0) {
+          const userAudio = userChunksRef.current.length
+            ? new Blob(userChunksRef.current, { type: 'audio/webm' })
+            : null
+          const aiAudio = aiChunksRef.current.length
+            ? new Blob(aiChunksRef.current, { type: 'audio/webm' })
+            : null
+
+          console.info('[Audio] Recording stopped. User blob:',
+            userAudio ? `${(userAudio.size / 1024).toFixed(1)}KB` : 'null',
+            '| AI blob:',
+            aiAudio ? `${(aiAudio.size / 1024).toFixed(1)}KB` : 'null')
+
+          resolve({ userAudio, aiAudio })
+        }
+      }
+
+      if (userRecorderRef.current?.state === 'recording') {
+        pending++
+        userRecorderRef.current.onstop = tryResolve
+        userRecorderRef.current.stop()
+      }
+      if (aiRecorderRef.current?.state === 'recording') {
+        pending++
+        aiRecorderRef.current.onstop = tryResolve
+        aiRecorderRef.current.stop()
+      }
+      // If neither was recording, resolve immediately
+      if (pending === 0) {
+        console.warn('[Audio] Neither recorder was in recording state — no audio captured')
+        resolve({ userAudio: null, aiAudio: null })
+      }
+    })
   }, [])
 
   const disconnect = useCallback(() => {
@@ -256,6 +354,12 @@ export function useRealtimeInterview(
       audioElRef.current.srcObject = null
       audioElRef.current = null
     }
+    // Clear recorder refs
+    userRecorderRef.current = null
+    aiRecorderRef.current = null
+    userChunksRef.current = []
+    aiChunksRef.current = []
+
     setConnectionState('disconnected')
     setCurrentSpeaker(null)
     setAiPartialTranscript('')
@@ -275,7 +379,7 @@ export function useRealtimeInterview(
     setIsMuted(!audioTrack.enabled)
   }, [])
 
-  const sendCodeContext = useCallback((snapshot: CodeContextSnapshot) => {
+  const sendCodeContext = useCallback((snapshot: CodeContextSnapshot, triggerResponse = false) => {
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
@@ -298,11 +402,24 @@ export function useRealtimeInterview(
         content: [{ type: 'input_text', text: `${preamble}\n\`\`\`${snapshot.language}\n${codeText}\n\`\`\`` }],
       },
     }))
+
+    // Nudge the AI to respond to the code update — without this,
+    // semantic_vad never triggers on text-only conversation items.
+    if (triggerResponse) {
+      dc.send(JSON.stringify({ type: 'response.create' }))
+    }
   }, [])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Stop recorders if still running
+      if (userRecorderRef.current?.state === 'recording') {
+        userRecorderRef.current.stop()
+      }
+      if (aiRecorderRef.current?.state === 'recording') {
+        aiRecorderRef.current.stop()
+      }
       dcRef.current?.close()
       pcRef.current?.close()
       localStreamRef.current?.getTracks().forEach((t) => t.stop())
@@ -322,5 +439,6 @@ export function useRealtimeInterview(
     disconnect,
     toggleMute,
     sendCodeContext,
+    stopRecording,
   }
 }

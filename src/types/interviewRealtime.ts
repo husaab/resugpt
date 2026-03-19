@@ -169,7 +169,8 @@ export interface UseRealtimeInterviewReturn {
   connect: (token: string) => Promise<void>
   disconnect: () => void
   toggleMute: () => void
-  sendCodeContext: (snapshot: CodeContextSnapshot) => void
+  sendCodeContext: (snapshot: CodeContextSnapshot, triggerResponse?: boolean) => void
+  stopRecording: () => Promise<{ userAudio: Blob | null; aiAudio: Blob | null }>
 }
 
 export interface UseMicCheckReturn {
