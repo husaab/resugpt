@@ -14,6 +14,7 @@ import {
   ExclamationTriangleIcon,
   LightBulbIcon,
   XMarkIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,6 +40,10 @@ export default function BriefingPage() {
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [logoFailed, setLogoFailed] = useState(false)
+
+  // Time pressure config
+  const [timePressureEnabled, setTimePressureEnabled] = useState(true)
+  const [roundDuration, setRoundDuration] = useState(120) // default 2 min
 
   // Active session detection
   const [activeSession, setActiveSession] = useState<InterviewSessionListItem | null>(null)
@@ -132,6 +137,13 @@ export default function BriefingPage() {
       const res = await createInterviewSession({
         googleId: session.user.googleId,
         roleId,
+        ...(timePressureEnabled && {
+          timePressure: {
+            enabled: true,
+            roundDurationSeconds: roundDuration,
+            graceSeconds: 30,
+          },
+        }),
       })
 
       // Sync real credit value from server
@@ -391,6 +403,72 @@ export default function BriefingPage() {
             </ul>
           </motion.div>
         )}
+
+        {/* Time Pressure Config */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.18 }}
+          className="bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-xl p-4 mb-6"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BoltIcon className="w-4 h-4 text-[var(--warning)]" />
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                Time Pressure
+              </span>
+            </div>
+            <button
+              onClick={() => setTimePressureEnabled(!timePressureEnabled)}
+              className={`relative w-10 h-5.5 rounded-full transition-colors cursor-pointer ${
+                timePressureEnabled ? 'bg-[var(--warning)]' : 'bg-[var(--bg-muted)]'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${
+                  timePressureEnabled ? 'translate-x-[18px]' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {timePressureEnabled && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3"
+            >
+              <p className="text-xs text-[var(--text-tertiary)] mb-2">
+                Time per round
+              </p>
+              <div className="flex gap-2">
+                {[
+                  { value: 120, label: '2 min' },
+                  { value: 300, label: '5 min' },
+                  { value: 600, label: '10 min' },
+                  { value: 900, label: '15 min' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setRoundDuration(opt.value)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                      roundDuration === opt.value
+                        ? 'bg-[var(--warning)] text-white border-[var(--warning)]'
+                        : 'bg-[var(--bg-body)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--warning)] hover:text-[var(--warning)]'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                Each question gets equal time. AI interviewer will move you along.
+              </p>
+            </motion.div>
+          )}
+        </motion.div>
 
         {/* CTA Section — context-aware based on existing session */}
         <motion.div

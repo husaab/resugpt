@@ -5,8 +5,10 @@ import {
   PencilSquareIcon,
   TrashIcon,
   ArrowTopRightOnSquareIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { RoleSummary } from '@/types/interviewPrep'
 import type { BadgeProps } from '@/components/ui/badge'
 
@@ -30,6 +32,7 @@ interface RoleCardProps {
   onSelect: () => void
   onEdit: () => void
   onDelete: (role: RoleSummary) => void
+  onStartInterview: () => void
 }
 
 // ─── Component ──────────────────────────────────────
@@ -42,6 +45,7 @@ export function RoleCard({
   onSelect,
   onEdit,
   onDelete,
+  onStartInterview,
 }: RoleCardProps) {
   return (
     <div
@@ -110,12 +114,26 @@ export function RoleCard({
           )}
         </div>
 
-        {/* Round count badge (always at bottom) */}
-        <div>
+        {/* Round count badge */}
+        <div className="mb-3">
           <Badge variant="outline" size="sm">
             {role.roundCount} {role.roundCount === 1 ? 'round' : 'rounds'}
           </Badge>
         </div>
+
+        {/* Start Interview CTA */}
+        <Button
+          variant="primary"
+          size="sm"
+          className="w-full"
+          onClick={(e) => {
+            e.stopPropagation()
+            onStartInterview()
+          }}
+        >
+          <PlayIcon className="w-4 h-4" />
+          Start Interview
+        </Button>
       </div>
     </div>
   )

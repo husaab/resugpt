@@ -4,6 +4,14 @@
 
 import type { CodingProblemFrontend, TestCaseResult } from './codingProblem'
 
+// ─── Time Pressure ──────────────────────────────────────
+
+export interface TimePressureConfig {
+  enabled: boolean
+  roundDurationSeconds: number // 120, 300, 600, or 900
+  graceSeconds: number         // always 30
+}
+
 // ─── Shared Types ────────────────────────────────────────
 
 export type InterviewSessionStatus = 'in_progress' | 'completed' | 'abandoned'
@@ -25,6 +33,7 @@ export interface SessionRound {
   codingProblemId: string | null
   codingProblem: CodingProblemFrontend | null
   testResults: TestCaseResult[] | null
+  timePressure?: TimePressureConfig | null
 }
 
 export interface Exchange {
@@ -89,6 +98,7 @@ export interface InterviewSession {
 export interface CreateInterviewSessionRequest {
   googleId: string
   roleId: string
+  timePressure?: TimePressureConfig
 }
 
 // ─── Response Types ──────────────────────────────────────

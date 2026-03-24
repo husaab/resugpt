@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { useCredits } from '@/contexts/CreditContext'
 import { ROUND_TYPE_VARIANT } from '@/components/interview-prep/RoleDetailsContent'
 import type { InterviewPhase, RealtimeConnectionState } from '@/types/interviewRealtime'
+import type { TimePressureConfig } from '@/types/interviewSession'
 
 interface InterviewNavbarProps {
   phase: InterviewPhase
@@ -33,6 +34,10 @@ interface InterviewNavbarProps {
   isEndingRound?: boolean
   onToggleMute?: () => void
   onEndRound?: () => void
+  isTimePressured?: boolean
+  displaySeconds?: number
+  isGracePeriod?: boolean
+  timePressureConfig?: TimePressureConfig | null
 }
 
 function formatTime(seconds: number): string {
@@ -56,6 +61,10 @@ export function InterviewNavbar({
   isEndingRound = false,
   onToggleMute,
   onEndRound,
+  isTimePressured = false,
+  displaySeconds,
+  isGracePeriod = false,
+  timePressureConfig,
 }: InterviewNavbarProps) {
   const { data: authSession } = useSession()
   const { displayCredits, subscriptionStatus } = useCredits()
@@ -66,6 +75,24 @@ export function InterviewNavbar({
 
   const showControls = phase === 'active' || phase === 'round-ending'
   const hasSessionInfo = !!companyName && !!roleTitle
+
+  // Timer urgency (computed once, not inside JSX)
+  const timerColor = (() => {
+    if (!isTimePressured || displaySeconds == null || !timePressureConfig) {
+      return 'var(--text-primary)'
+    }
+    const total = timePressureConfig.roundDurationSeconds
+    const ratio = displaySeconds / total
+    if (isGracePeriod) return 'var(--error)'
+    if (ratio <= 0.25) return 'var(--error)'
+    if (ratio <= 0.50) return 'var(--warning)'
+    return 'var(--success)'
+  })()
+  const shouldPulse = isGracePeriod || (isTimePressured && displaySeconds != null && displaySeconds <= 30)
+  const timerValue = isTimePressured && displaySeconds != null
+    ? formatTime(displaySeconds)
+    : formatTime(elapsedSeconds)
+
   const variant = roundType
     ? (ROUND_TYPE_VARIANT[roundType as keyof typeof ROUND_TYPE_VARIANT] ?? 'default')
     : 'default'
@@ -162,9 +189,20 @@ export function InterviewNavbar({
             {/* Timer + Connection (active phases only) */}
             {showControls && (
               <>
-                <span className="font-mono text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                  {formatTime(elapsedSeconds)}
+                <span
+                  className={cn(
+                    'font-mono text-base sm:text-lg font-semibold transition-colors duration-500',
+                    shouldPulse && 'animate-pulse'
+                  )}
+                  style={{ color: timerColor }}
+                >
+                  {timerValue}
                 </span>
+                {isGracePeriod && (
+                  <Badge variant="error" size="sm" className="animate-pulse">
+                    Grace Period
+                  </Badge>
+                )}
                 <div className="hidden sm:flex">
                   <ConnectionStatus state={connectionState} />
                 </div>

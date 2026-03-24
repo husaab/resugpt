@@ -477,6 +477,10 @@ export default function InterviewPrepPage() {
                           {company.description}
                         </p>
                       )}
+
+                      <p className="text-xs font-medium text-[var(--accent-color)]">
+                        Practice Interviews &rarr;
+                      </p>
                     </div>
                   </Link>
 

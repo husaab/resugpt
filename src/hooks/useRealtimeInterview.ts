@@ -410,6 +410,23 @@ export function useRealtimeInterview(
     }
   }, [])
 
+  const sendTimeAlert = useCallback((message: string) => {
+    const dc = dcRef.current
+    if (!dc || dc.readyState !== 'open') return
+
+    dc.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: message }],
+      },
+    }))
+
+    // Trigger AI to respond to the time alert
+    dc.send(JSON.stringify({ type: 'response.create' }))
+  }, [])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -440,5 +457,6 @@ export function useRealtimeInterview(
     toggleMute,
     sendCodeContext,
     stopRecording,
+    sendTimeAlert,
   }
 }

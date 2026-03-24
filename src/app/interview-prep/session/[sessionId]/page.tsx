@@ -16,6 +16,8 @@ import { AudioControls } from '@/components/interview-session/AudioControls'
 import { RoundScoreCard } from '@/components/interview-session/RoundScoreCard'
 import { CodeEditorPanel, DEFAULT_CODE } from '@/components/interview-session/CodeEditorPanel'
 import { CodingInterviewLayout } from '@/components/interview-session/CodingInterviewLayout'
+import { TimePressureToast } from '@/components/interview-session/TimePressureToast'
+import type { TimePressureAlert, TimePressureAlertLevel } from '@/components/interview-session/TimePressureToast'
 import { useMicCheck } from '@/hooks/useMicCheck'
 import { useRealtimeInterview } from '@/hooks/useRealtimeInterview'
 import { useCodeObserver } from '@/hooks/useCodeObserver'
@@ -29,7 +31,7 @@ import {
   saveCodeSnapshots,
   uploadRoundAudio,
 } from '@/services/interviewSessionService'
-import type { InterviewSession } from '@/types/interviewSession'
+import type { InterviewSession, TimePressureConfig } from '@/types/interviewSession'
 import type { InterviewPhase, EndRoundResponse, CodeContextSnapshot } from '@/types/interviewRealtime'
 import type { CodingProblemFrontend } from '@/types/codingProblem'
 
@@ -53,6 +55,28 @@ export default function LiveInterviewPage() {
   const [roundTitle, setRoundTitle] = useState('')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
+  // Time pressure
+  const [timePressure, setTimePressure] = useState<TimePressureConfig | null>(null)
+  const [questionCount, setQuestionCount] = useState(0)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [isGracePeriod, setIsGracePeriod] = useState(false)
+  const questionTimeAlertSentRef = useRef(false)
+  const roundWarningRef = useRef(false)
+  const autoEndFiredRef = useRef(false)
+  const questionWarningSentRef = useRef(false)
+  const questionAlertResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Time pressure toasts
+  const [timePressureAlerts, setTimePressureAlerts] = useState<TimePressureAlert[]>([])
+  const alertIdRef = useRef(0)
+  const pushAlert = useCallback((message: string, level: TimePressureAlertLevel) => {
+    const id = ++alertIdRef.current
+    setTimePressureAlerts((prev) => [...prev, { id, message, level }])
+  }, [])
+  const dismissAlert = useCallback((id: number) => {
+    setTimePressureAlerts((prev) => prev.filter((a) => a.id !== id))
+  }, [])
+
   // Score state (shown between rounds)
   const [roundResult, setRoundResult] = useState<EndRoundResponse['data'] | null>(null)
 
@@ -75,6 +99,13 @@ export default function LiveInterviewPage() {
   const googleId = authSession?.user?.googleId
   const isCodingRound = ['technical', 'coding', 'live_coding'].includes(roundType)
   const hasCodingProblem = codingProblem !== null
+  const isTimePressured = timePressure?.enabled === true
+  const displaySeconds = isTimePressured
+    ? Math.max(0, timePressure.roundDurationSeconds - elapsedSeconds)
+    : elapsedSeconds
+  const perQuestionSeconds = isTimePressured && questionCount > 0
+    ? Math.floor(timePressure.roundDurationSeconds / questionCount)
+    : null
 
   // Mic check
   const mic = useMicCheck()
@@ -226,6 +257,16 @@ export default function LiveInterviewPage() {
   useEffect(() => {
     if (phase === 'active') {
       setElapsedSeconds(0)
+      setIsGracePeriod(false)
+      questionTimeAlertSentRef.current = false
+      questionWarningSentRef.current = false
+      roundWarningRef.current = false
+      autoEndFiredRef.current = false
+      setTimePressureAlerts([])
+      if (questionAlertResetTimerRef.current) {
+        clearTimeout(questionAlertResetTimerRef.current)
+        questionAlertResetTimerRef.current = null
+      }
       timerRef.current = setInterval(() => {
         setElapsedSeconds((prev) => prev + 1)
       }, 1000)
@@ -306,6 +347,15 @@ export default function LiveInterviewPage() {
       setRoundType(currentRound.type)
       setRoundTitle(currentRound.title)
 
+      // Capture time pressure config
+      if (currentRound.timePressure?.enabled) {
+        setTimePressure(currentRound.timePressure)
+        setQuestionCount(currentRound.questionCount)
+        setCurrentQuestionIndex(0)
+      } else {
+        setTimePressure(null)
+      }
+
       await realtime.connect(ephemeralToken)
       // Phase transitions to 'active' via the connectionState effect below,
       // keeping the "Connecting..." spinner visible through ICE negotiation.
@@ -375,6 +425,72 @@ export default function LiveInterviewPage() {
     }
   }, [googleId, sessionId, currentRoundNumber, elapsedSeconds, realtime, isCodingRound, code, codeLanguage, lastSubmitResults])
 
+  // ─── Time pressure triggers ────────────────────────
+
+  useEffect(() => {
+    if (!isTimePressured || phase !== 'active' || !timePressure) return
+
+    const totalAllowed = timePressure.roundDurationSeconds
+    const graceEnd = totalAllowed + timePressure.graceSeconds
+
+    // Per-question time alert
+    if (perQuestionSeconds && questionCount > 0) {
+      const currentQuestionDeadline = perQuestionSeconds * (currentQuestionIndex + 1)
+      const questionWarningPoint = perQuestionSeconds * currentQuestionIndex + Math.floor(perQuestionSeconds * 0.75)
+
+      // Warn when 75% of question time has passed (only if question is long enough)
+      if (perQuestionSeconds >= 20 && elapsedSeconds >= questionWarningPoint && elapsedSeconds < currentQuestionDeadline && !questionWarningSentRef.current) {
+        questionWarningSentRef.current = true
+        const secsLeft = currentQuestionDeadline - elapsedSeconds
+        pushAlert(`${secsLeft}s left on this question`, 'warning')
+      }
+
+      if (elapsedSeconds >= currentQuestionDeadline && !questionTimeAlertSentRef.current) {
+        questionTimeAlertSentRef.current = true
+
+        if (currentQuestionIndex < questionCount - 1) {
+          realtime.sendTimeAlert(
+            `[TIME ALERT] The candidate's time for question ${currentQuestionIndex + 1} is up. Say something like "Sorry, we're short on time here — let's skip to the next question" and immediately ask question ${currentQuestionIndex + 2}.`
+          )
+          pushAlert(`Moving to question ${currentQuestionIndex + 2} of ${questionCount}`, 'info')
+          setCurrentQuestionIndex((prev) => prev + 1)
+          // Reset for next question (tracked ref to clear on unmount)
+          if (questionAlertResetTimerRef.current) clearTimeout(questionAlertResetTimerRef.current)
+          questionAlertResetTimerRef.current = setTimeout(() => {
+            questionTimeAlertSentRef.current = false
+            questionWarningSentRef.current = false
+          }, 1000)
+        }
+      }
+    }
+
+    // Round warning at 30 seconds before expiry (only if round is long enough and on last question or past all questions)
+    const warningThreshold = Math.max(0, totalAllowed - 30)
+    const onLastQuestionOrPast = !perQuestionSeconds || currentQuestionIndex >= questionCount - 1
+    if (warningThreshold > 0 && onLastQuestionOrPast && elapsedSeconds >= warningThreshold && elapsedSeconds < totalAllowed && !roundWarningRef.current) {
+      roundWarningRef.current = true
+      realtime.sendTimeAlert(
+        '[TIME ALERT] Only 30 seconds remain in this round. Start wrapping up — ask one final quick follow-up or begin your closing remarks. Do NOT call end_round yet.'
+      )
+      pushAlert('Hurry up! 30 seconds left', 'warning')
+    }
+
+    // Round expiry: enter grace period
+    if (elapsedSeconds >= totalAllowed && !isGracePeriod) {
+      setIsGracePeriod(true)
+      realtime.sendTimeAlert(
+        '[TIME ALERT] Time is up for this round. The system will end the round automatically in 30 seconds. Say a brief closing remark like "Alright, that\'s all the time we have — thanks for your answers." Do NOT call end_round — the system handles it.'
+      )
+      pushAlert("Time's up!", 'critical')
+    }
+
+    // Grace period expired: auto-end (guarded to fire only once)
+    if (elapsedSeconds >= graceEnd && !autoEndFiredRef.current) {
+      autoEndFiredRef.current = true
+      handleEndRound()
+    }
+  }, [elapsedSeconds, isTimePressured, phase, timePressure, perQuestionSeconds, questionCount, currentQuestionIndex, isGracePeriod, realtime, handleEndRound, pushAlert])
+
   // ─── Next round ─────────────────────────────────────
 
   const handleNextRound = useCallback(async () => {
@@ -390,6 +506,18 @@ export default function LiveInterviewPage() {
       setCodingProblem(null)
       setLastSubmitResults(null)
       testRunner.clearResults()
+      setElapsedSeconds(0)
+      setCurrentQuestionIndex(0)
+      setIsGracePeriod(false)
+      questionTimeAlertSentRef.current = false
+      questionWarningSentRef.current = false
+      roundWarningRef.current = false
+      autoEndFiredRef.current = false
+      setTimePressureAlerts([])
+      if (questionAlertResetTimerRef.current) {
+        clearTimeout(questionAlertResetTimerRef.current)
+        questionAlertResetTimerRef.current = null
+      }
 
       const tokenRes = await mintEphemeralToken(sessionId, googleId)
       if (!tokenRes.success) {
@@ -403,6 +531,14 @@ export default function LiveInterviewPage() {
       setRoundType(currentRound.type)
       setRoundTitle(currentRound.title)
       setRoundResult(null)
+
+      // Capture time pressure config for next round
+      if (currentRound.timePressure?.enabled) {
+        setTimePressure(currentRound.timePressure)
+        setQuestionCount(currentRound.questionCount)
+      } else {
+        setTimePressure(null)
+      }
 
       // Check if next round has a coding problem
       if (session) {
@@ -445,6 +581,10 @@ export default function LiveInterviewPage() {
         isEndingRound={phase === 'round-ending'}
         onToggleMute={realtime.toggleMute}
         onEndRound={() => handleEndRound()}
+        isTimePressured={isTimePressured}
+        displaySeconds={displaySeconds}
+        isGracePeriod={isGracePeriod}
+        timePressureConfig={timePressure}
       />
 
       {/* ── Phase content ───────────────────────────────── */}
@@ -700,6 +840,14 @@ export default function LiveInterviewPage() {
             currentSpeaker={realtime.currentSpeaker}
             onToggleMute={realtime.toggleMute}
           />
+
+          {/* Time pressure notifications */}
+          {isTimePressured && timePressureAlerts.length > 0 && (
+            <TimePressureToast
+              alerts={timePressureAlerts}
+              onDismiss={dismissAlert}
+            />
+          )}
 
           {/* Scoring overlay */}
           {phase === 'round-ending' && (

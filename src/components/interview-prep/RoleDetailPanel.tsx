@@ -6,7 +6,9 @@ import {
   PencilSquareIcon,
   TrashIcon,
   ArrowTopRightOnSquareIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ModalShell } from '@/components/ui/ModalShell'
 import { RoleDetailsContent, LEVEL_VARIANT } from './RoleDetailsContent'
@@ -24,6 +26,7 @@ interface RoleDetailPanelProps {
   isAdmin: boolean
   onEdit: (role: RoleDetails) => void
   onDelete: (role: RoleSummary) => void
+  onStartInterview: () => void
 }
 
 // ─── Component ──────────────────────────────────────
@@ -37,6 +40,7 @@ export function RoleDetailPanel({
   isAdmin,
   onEdit,
   onDelete,
+  onStartInterview,
 }: RoleDetailPanelProps) {
   const [details, setDetails] = useState<RoleDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -141,6 +145,18 @@ export function RoleDetailPanel({
           </div>
         )}
       </div>
+
+      {/* ─── Start Mock Interview CTA ─── */}
+      <Button
+        variant="primary"
+        size="md"
+        className="w-full mb-4"
+        onClick={onStartInterview}
+        disabled={isLoading || !!fetchError || !details}
+      >
+        <PlayIcon className="w-5 h-5" />
+        Start Mock Interview
+      </Button>
 
       {/* ─── Level + Department ─── */}
       {details && (

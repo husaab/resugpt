@@ -2,7 +2,7 @@
  * Types for the OpenAI Realtime Voice interview feature
  */
 
-import type { SessionRound, Exchange } from './interviewSession'
+import type { SessionRound, Exchange, TimePressureConfig } from './interviewSession'
 
 // ─── Connection & Phase States ──────────────────────────
 
@@ -38,6 +38,8 @@ export interface MintTokenResponse {
       type: string
       title: string
       totalRounds: number
+      questionCount: number
+      timePressure?: TimePressureConfig | null
     }
   }
 }
@@ -171,6 +173,7 @@ export interface UseRealtimeInterviewReturn {
   toggleMute: () => void
   sendCodeContext: (snapshot: CodeContextSnapshot, triggerResponse?: boolean) => void
   stopRecording: () => Promise<{ userAudio: Blob | null; aiAudio: Blob | null }>
+  sendTimeAlert: (message: string) => void
 }
 
 export interface UseMicCheckReturn {

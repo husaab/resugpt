@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { useSession } from 'next-auth/react'
+import { useSession, signIn } from 'next-auth/react'
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -44,6 +44,7 @@ type ModalState =
 
 export default function CompanyDetailPage() {
   const { companyId } = useParams<{ companyId: string }>()
+  const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.isAdmin === true
 
@@ -120,6 +121,16 @@ export default function CompanyDetailPage() {
       setSelectedRoleId(null)
     }
   }, [filteredRoles, selectedRoleId])
+
+  // ─── Interview CTA Handler ────────────────────────────
+
+  const handleStartInterview = (roleId: string) => {
+    if (session) {
+      router.push(`/interview-prep/${companyId}/roles/${roleId}/briefing`)
+    } else {
+      signIn()
+    }
+  }
 
   // ─── Admin Handlers ─────────────────────────────────
 
@@ -539,6 +550,7 @@ export default function CompanyDetailPage() {
                       onDelete={(roleSummary) =>
                         setModal({ type: 'delete', role: roleSummary })
                       }
+                      onStartInterview={() => handleStartInterview(role.id)}
                     />
                   </motion.div>
                 ))}
@@ -593,6 +605,9 @@ export default function CompanyDetailPage() {
             }
             onDelete={(roleSummary) =>
               setModal({ type: 'delete', role: roleSummary })
+            }
+            onStartInterview={() =>
+              selectedRoleId && handleStartInterview(selectedRoleId)
             }
           />
         </motion.div>
