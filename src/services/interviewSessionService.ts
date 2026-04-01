@@ -224,13 +224,17 @@ export const uploadRoundAudio = async (
   googleId: string,
   roundNumber: number,
   userAudio: Blob | null,
-  aiAudio: Blob | null
+  aiAudio: Blob | null,
+  cameraVideo: Blob | null = null,
+  screenVideo: Blob | null = null
 ): Promise<UploadAudioResponse> => {
   const formData = new FormData();
   formData.append('googleId', googleId);
   formData.append('roundNumber', String(roundNumber));
   if (userAudio) formData.append('userAudio', userAudio, 'user-audio.webm');
   if (aiAudio) formData.append('aiAudio', aiAudio, 'ai-audio.webm');
+  if (cameraVideo) formData.append('cameraVideo', cameraVideo, 'camera-video.webm');
+  if (screenVideo) formData.append('screenVideo', screenVideo, 'screen-video.webm');
 
   const response = await fetch(`${baseURL}interview-sessions/${sessionId}/upload-audio`, {
     method: 'POST',

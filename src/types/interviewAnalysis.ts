@@ -64,6 +64,8 @@ export interface RoundAudioUrls {
   roundNumber: number
   userAudioUrl: string | null
   aiAudioUrl: string | null
+  cameraVideoUrl: string | null
+  screenVideoUrl: string | null
 }
 
 // ─── Progress Types ─────────────────────────────────────────

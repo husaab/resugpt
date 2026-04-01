@@ -18,6 +18,8 @@ import {
   ReplayTimeline,
   RoundNavigation,
   TranscriptReplayPanel,
+  VideoPlayer,
+  VideoPlaybackBar,
 } from '@/components/interview-replay'
 import {
   getInterviewSession,
@@ -51,6 +53,10 @@ export default function ReplayPage() {
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioDuration, setAudioDuration] = useState(0)
+
+  // Video state
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [activeTrack, setActiveTrack] = useState<'camera' | 'screen'>('camera')
 
   // Text mode animation
   const textTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -182,9 +188,14 @@ export default function ReplayPage() {
     ? (analysis.moments || []).filter((m) => m.roundNumber === activeRound)
     : []
 
-  // Audio availability for this round
+  // Audio/video availability for this round
   const roundAudioData = roundAudio.find((a) => a.roundNumber === activeRound)
   const hasAudio = !!(roundAudioData?.userAudioUrl || roundAudioData?.aiAudioUrl)
+  const hasVideo = !!(roundAudioData?.cameraVideoUrl || roundAudioData?.screenVideoUrl)
+  const activeVideoUrl = activeTrack === 'screen' && roundAudioData?.screenVideoUrl
+    ? roundAudioData.screenVideoUrl
+    : roundAudioData?.cameraVideoUrl ?? null
+  const hasScreenRecording = !!roundAudioData?.screenVideoUrl
 
   // Total duration = max of audio duration, round duration, or computed from timestamps
   const totalDuration = Math.max(
@@ -314,7 +325,7 @@ export default function ReplayPage() {
               Interview Replay — {session.role.title}
             </h1>
           </div>
-          {!hasAudio && (
+          {!hasAudio && !hasVideo && (
             <Badge variant="outline" size="sm" className="ml-auto">
               Text replay
             </Badge>
@@ -338,8 +349,35 @@ export default function ReplayPage() {
           />
         </div>
 
-        {/* Audio playback bar (only if audio exists for this round) */}
-        {hasAudio && (
+        {/* Video player (if camera/screen recording exists) */}
+        {hasVideo && (
+          <div className="mb-3">
+            <VideoPlayer
+              ref={videoRef}
+              videoUrl={activeVideoUrl}
+            />
+          </div>
+        )}
+
+        {/* Playback bar — video-driven when video exists, audio-driven otherwise */}
+        {hasVideo ? (
+          <div className="mb-3">
+            <VideoPlaybackBar
+              videoRef={videoRef}
+              userAudioUrl={roundAudioData?.userAudioUrl ?? null}
+              aiAudioUrl={roundAudioData?.aiAudioUrl ?? null}
+              currentTime={currentTime}
+              duration={totalDuration}
+              isPlaying={isPlaying}
+              onPlayPause={handlePlayPause}
+              onTimeUpdate={handleTimeUpdate}
+              onDurationResolved={handleDurationResolved}
+              hasScreenRecording={hasScreenRecording}
+              activeTrack={activeTrack}
+              onTrackSwitch={setActiveTrack}
+            />
+          </div>
+        ) : hasAudio ? (
           <div className="mb-3">
             <AudioPlaybackBar
               userAudioUrl={roundAudioData?.userAudioUrl ?? null}
@@ -352,7 +390,7 @@ export default function ReplayPage() {
               onDurationResolved={handleDurationResolved}
             />
           </div>
-        )}
+        ) : null}
 
         {/* Text mode play button (when no audio) */}
         {!hasAudio && exchanges.length > 0 && (

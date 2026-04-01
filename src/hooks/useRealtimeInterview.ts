@@ -9,15 +9,29 @@ import type {
   RealtimeDataChannelEvent,
   CodeContextSnapshot,
   Exchange,
+  MediaStreams,
+  StopRecordingResult,
 } from '@/types/interviewRealtime'
 
 const REALTIME_CALLS_URL = 'https://api.openai.com/v1/realtime/calls'
+
+/**
+ * Negotiate the best supported MIME type for video recording.
+ */
+function getVideoMimeType(): string {
+  if (typeof MediaRecorder === 'undefined') return ''
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) return 'video/webm;codecs=vp9'
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) return 'video/webm;codecs=vp8'
+  if (MediaRecorder.isTypeSupported('video/webm')) return 'video/webm'
+  return ''
+}
 
 export function useRealtimeInterview(
   options?: UseRealtimeInterviewOptions
 ): UseRealtimeInterviewReturn {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>('idle')
   const [isMuted, setIsMuted] = useState(false)
+  const [isCameraOff, setIsCameraOff] = useState(false)
   const [transcript, setTranscript] = useState<Exchange[]>([])
   const [currentSpeaker, setCurrentSpeaker] = useState<CurrentSpeaker>(null)
   const [aiPartialTranscript, setAiPartialTranscript] = useState('')
@@ -41,7 +55,15 @@ export function useRealtimeInterview(
   const userChunksRef = useRef<Blob[]>([])
   const aiChunksRef = useRef<Blob[]>([])
 
-  const connect = useCallback(async (ephemeralToken: string) => {
+  // Video recording refs
+  const cameraStreamRef = useRef<MediaStream | null>(null)
+  const screenStreamRef = useRef<MediaStream | null>(null)
+  const cameraRecorderRef = useRef<MediaRecorder | null>(null)
+  const screenRecorderRef = useRef<MediaRecorder | null>(null)
+  const cameraChunksRef = useRef<Blob[]>([])
+  const screenChunksRef = useRef<Blob[]>([])
+
+  const connect = useCallback(async (ephemeralToken: string, streams?: MediaStreams) => {
     try {
       setConnectionState('connecting')
       setError(null)
@@ -118,7 +140,54 @@ export function useRealtimeInterview(
         console.warn('[Audio] Failed to start user recorder:', err)
       }
 
-      // 4. Create data channel for events
+      // 4. Start camera video recording (if stream provided)
+      if (streams?.camera) {
+        cameraStreamRef.current = streams.camera
+        setIsCameraOff(false)
+        try {
+          const videoMime = getVideoMimeType()
+          if (videoMime) {
+            const cameraRecorder = new MediaRecorder(streams.camera, { mimeType: videoMime })
+            cameraChunksRef.current = []
+            cameraRecorder.ondataavailable = (ev) => {
+              if (ev.data.size > 0) cameraChunksRef.current.push(ev.data)
+            }
+            cameraRecorder.onerror = (ev) => console.warn('[Video] Camera recorder error:', ev)
+            cameraRecorder.start(1000)
+            cameraRecorderRef.current = cameraRecorder
+            console.info('[Video] Camera recorder started, mimeType:', videoMime)
+          } else {
+            console.warn('[Video] No supported mimeType for camera recording')
+          }
+        } catch (err) {
+          console.warn('[Video] Failed to start camera recorder:', err)
+        }
+      }
+
+      // 5. Start screen recording (if stream provided)
+      if (streams?.screen) {
+        screenStreamRef.current = streams.screen
+        try {
+          const videoMime = getVideoMimeType()
+          if (videoMime) {
+            const screenRecorder = new MediaRecorder(streams.screen, { mimeType: videoMime })
+            screenChunksRef.current = []
+            screenRecorder.ondataavailable = (ev) => {
+              if (ev.data.size > 0) screenChunksRef.current.push(ev.data)
+            }
+            screenRecorder.onerror = (ev) => console.warn('[Video] Screen recorder error:', ev)
+            screenRecorder.start(1000)
+            screenRecorderRef.current = screenRecorder
+            console.info('[Video] Screen recorder started, mimeType:', videoMime)
+          } else {
+            console.warn('[Video] No supported mimeType for screen recording')
+          }
+        } catch (err) {
+          console.warn('[Video] Failed to start screen recorder:', err)
+        }
+      }
+
+      // 6. Create data channel for events
       const dc = pc.createDataChannel('oai-events')
       dcRef.current = dc
 
@@ -143,11 +212,11 @@ export function useRealtimeInterview(
         }
       }
 
-      // 5. Create SDP offer
+      // 7. Create SDP offer
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
 
-      // 6. Send SDP offer to OpenAI Realtime GA endpoint
+      // 8. Send SDP offer to OpenAI Realtime GA endpoint
       const sdpResponse = await fetch(REALTIME_CALLS_URL, {
         method: 'POST',
         headers: {
@@ -287,17 +356,19 @@ export function useRealtimeInterview(
   }, [])
 
   /**
-   * Stop audio recorders and return the accumulated blobs.
-   * Must be called BEFORE disconnect() to capture the final audio chunks.
+   * Stop all recorders and return the accumulated blobs.
+   * Must be called BEFORE disconnect() to capture the final chunks.
    */
-  const stopRecording = useCallback((): Promise<{
-    userAudio: Blob | null
-    aiAudio: Blob | null
-  }> => {
-    console.info('[Audio] stopRecording called. User recorder state:', userRecorderRef.current?.state ?? 'null',
-      '| AI recorder state:', aiRecorderRef.current?.state ?? 'null',
+  const stopRecording = useCallback((): Promise<StopRecordingResult> => {
+    console.info('[Recording] stopRecording called.',
+      'User:', userRecorderRef.current?.state ?? 'null',
+      '| AI:', aiRecorderRef.current?.state ?? 'null',
+      '| Camera:', cameraRecorderRef.current?.state ?? 'null',
+      '| Screen:', screenRecorderRef.current?.state ?? 'null',
       '| User chunks:', userChunksRef.current.length,
-      '| AI chunks:', aiChunksRef.current.length)
+      '| AI chunks:', aiChunksRef.current.length,
+      '| Camera chunks:', cameraChunksRef.current.length,
+      '| Screen chunks:', screenChunksRef.current.length)
 
     return new Promise((resolve) => {
       let pending = 0
@@ -309,13 +380,20 @@ export function useRealtimeInterview(
           const aiAudio = aiChunksRef.current.length
             ? new Blob(aiChunksRef.current, { type: 'audio/webm' })
             : null
+          const cameraVideo = cameraChunksRef.current.length
+            ? new Blob(cameraChunksRef.current, { type: 'video/webm' })
+            : null
+          const screenVideo = screenChunksRef.current.length
+            ? new Blob(screenChunksRef.current, { type: 'video/webm' })
+            : null
 
-          console.info('[Audio] Recording stopped. User blob:',
-            userAudio ? `${(userAudio.size / 1024).toFixed(1)}KB` : 'null',
-            '| AI blob:',
-            aiAudio ? `${(aiAudio.size / 1024).toFixed(1)}KB` : 'null')
+          console.info('[Recording] All stopped.',
+            'User:', userAudio ? `${(userAudio.size / 1024).toFixed(1)}KB` : 'null',
+            '| AI:', aiAudio ? `${(aiAudio.size / 1024).toFixed(1)}KB` : 'null',
+            '| Camera:', cameraVideo ? `${(cameraVideo.size / 1024).toFixed(1)}KB` : 'null',
+            '| Screen:', screenVideo ? `${(screenVideo.size / 1024).toFixed(1)}KB` : 'null')
 
-          resolve({ userAudio, aiAudio })
+          resolve({ userAudio, aiAudio, cameraVideo, screenVideo })
         }
       }
 
@@ -329,10 +407,20 @@ export function useRealtimeInterview(
         aiRecorderRef.current.onstop = tryResolve
         aiRecorderRef.current.stop()
       }
-      // If neither was recording, resolve immediately
+      if (cameraRecorderRef.current?.state === 'recording') {
+        pending++
+        cameraRecorderRef.current.onstop = tryResolve
+        cameraRecorderRef.current.stop()
+      }
+      if (screenRecorderRef.current?.state === 'recording') {
+        pending++
+        screenRecorderRef.current.onstop = tryResolve
+        screenRecorderRef.current.stop()
+      }
+      // If none was recording, resolve immediately
       if (pending === 0) {
-        console.warn('[Audio] Neither recorder was in recording state — no audio captured')
-        resolve({ userAudio: null, aiAudio: null })
+        console.warn('[Recording] No recorders were in recording state')
+        resolve({ userAudio: null, aiAudio: null, cameraVideo: null, screenVideo: null })
       }
     })
   }, [])
@@ -354,11 +442,24 @@ export function useRealtimeInterview(
       audioElRef.current.srcObject = null
       audioElRef.current = null
     }
-    // Clear recorder refs
+    // Stop camera and screen streams
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((t) => t.stop())
+      cameraStreamRef.current = null
+    }
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((t) => t.stop())
+      screenStreamRef.current = null
+    }
+    // Clear all recorder refs
     userRecorderRef.current = null
     aiRecorderRef.current = null
+    cameraRecorderRef.current = null
+    screenRecorderRef.current = null
     userChunksRef.current = []
     aiChunksRef.current = []
+    cameraChunksRef.current = []
+    screenChunksRef.current = []
 
     setConnectionState('disconnected')
     setCurrentSpeaker(null)
@@ -377,6 +478,17 @@ export function useRealtimeInterview(
 
     audioTrack.enabled = !audioTrack.enabled
     setIsMuted(!audioTrack.enabled)
+  }, [])
+
+  const toggleCamera = useCallback(() => {
+    const stream = cameraStreamRef.current
+    if (!stream) return
+
+    const videoTrack = stream.getVideoTracks()[0]
+    if (!videoTrack) return
+
+    videoTrack.enabled = !videoTrack.enabled
+    setIsCameraOff(!videoTrack.enabled)
   }, [])
 
   const sendCodeContext = useCallback((snapshot: CodeContextSnapshot, triggerResponse = false) => {
@@ -431,15 +543,15 @@ export function useRealtimeInterview(
   useEffect(() => {
     return () => {
       // Stop recorders if still running
-      if (userRecorderRef.current?.state === 'recording') {
-        userRecorderRef.current.stop()
-      }
-      if (aiRecorderRef.current?.state === 'recording') {
-        aiRecorderRef.current.stop()
-      }
+      if (userRecorderRef.current?.state === 'recording') userRecorderRef.current.stop()
+      if (aiRecorderRef.current?.state === 'recording') aiRecorderRef.current.stop()
+      if (cameraRecorderRef.current?.state === 'recording') cameraRecorderRef.current.stop()
+      if (screenRecorderRef.current?.state === 'recording') screenRecorderRef.current.stop()
       dcRef.current?.close()
       pcRef.current?.close()
       localStreamRef.current?.getTracks().forEach((t) => t.stop())
+      cameraStreamRef.current?.getTracks().forEach((t) => t.stop())
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop())
       if (audioElRef.current) audioElRef.current.srcObject = null
     }
   }, [])
@@ -447,14 +559,17 @@ export function useRealtimeInterview(
   return {
     connectionState,
     isMuted,
+    isCameraOff,
     transcript,
     currentSpeaker,
     aiPartialTranscript,
     userPartialTranscript,
     error,
+    cameraStreamRef,
     connect,
     disconnect,
     toggleMute,
+    toggleCamera,
     sendCodeContext,
     stopRecording,
     sendTimeAlert,

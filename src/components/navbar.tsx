@@ -370,7 +370,7 @@ export function Navbar() {
         className={cn(
           'fixed top-0 left-0 right-0 z-[55] transition-all duration-300',
           scrolled
-            ? 'bg-[var(--bg-body)]/80 backdrop-blur-xl border-b border-[var(--border-color)]'
+            ? 'bg-[var(--bg-body)]/80 backdrop-blur-xl border-b border-[var(--border-color)] shadow-[var(--shadow-sm)]'
             : 'bg-transparent'
         )}
       >
@@ -384,7 +384,7 @@ export function Navbar() {
                 className="flex items-center gap-2.5"
               >
                 {/* Logo icon */}
-                <div className="w-9 h-9 rounded-xl bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-[var(--accent-color)] flex items-center justify-center shadow-sm group-hover:shadow-[0_0_12px_var(--accent-color)/30] transition-shadow duration-300">
                   <svg
                     className="w-5 h-5 text-white"
                     fill="none"
@@ -528,9 +528,9 @@ export function Navbar() {
                         Log in
                       </Button>
                     </Link>
-                    <Link href="/pricing">
-                      <Button variant="primary" size="sm">
-                        Get Started
+                    <Link href="/auth">
+                      <Button variant="primary" size="sm" className="shadow-sm hover:shadow-md transition-shadow">
+                        Get Started Free
                       </Button>
                     </Link>
                   </motion.div>

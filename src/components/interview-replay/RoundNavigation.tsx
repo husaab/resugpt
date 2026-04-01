@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { ROUND_TYPE_VARIANT } from '@/components/interview-prep/RoleDetailsContent'
-import { SpeakerWaveIcon } from '@heroicons/react/24/outline'
+import { SpeakerWaveIcon, VideoCameraIcon } from '@heroicons/react/24/outline'
 import type { SessionRound } from '@/types/interviewSession'
 import type { RoundAudioUrls } from '@/types/interviewAnalysis'
 
@@ -23,9 +23,9 @@ export function RoundNavigation({ rounds, activeRound, onRoundChange, roundAudio
       {rounds.map((round) => {
         const isActive = round.roundNumber === activeRound
         const typeVariant = ROUND_TYPE_VARIANT[round.type as keyof typeof ROUND_TYPE_VARIANT] ?? 'default'
-        const hasAudio = roundAudio.some(
-          (a) => a.roundNumber === round.roundNumber && (a.userAudioUrl || a.aiAudioUrl)
-        )
+        const roundMedia = roundAudio.find((a) => a.roundNumber === round.roundNumber)
+        const hasAudio = !!(roundMedia?.userAudioUrl || roundMedia?.aiAudioUrl)
+        const hasVideo = !!(roundMedia?.cameraVideoUrl || roundMedia?.screenVideoUrl)
 
         return (
           <button
@@ -54,6 +54,9 @@ export function RoundNavigation({ rounds, activeRound, onRoundChange, roundAudio
               </span>
             )}
 
+            {hasVideo && (
+              <VideoCameraIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+            )}
             {hasAudio && (
               <SpeakerWaveIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
             )}

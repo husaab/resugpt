@@ -160,19 +160,34 @@ export interface CodeContextSnapshot {
   isFirstSnapshot: boolean
 }
 
+export interface MediaStreams {
+  camera?: MediaStream | null
+  screen?: MediaStream | null
+}
+
+export interface StopRecordingResult {
+  userAudio: Blob | null
+  aiAudio: Blob | null
+  cameraVideo: Blob | null
+  screenVideo: Blob | null
+}
+
 export interface UseRealtimeInterviewReturn {
   connectionState: RealtimeConnectionState
   isMuted: boolean
+  isCameraOff: boolean
   transcript: Exchange[]
   currentSpeaker: CurrentSpeaker
   aiPartialTranscript: string
   userPartialTranscript: string
   error: string | null
-  connect: (token: string) => Promise<void>
+  cameraStreamRef: React.RefObject<MediaStream | null>
+  connect: (token: string, streams?: MediaStreams) => Promise<void>
   disconnect: () => void
   toggleMute: () => void
+  toggleCamera: () => void
   sendCodeContext: (snapshot: CodeContextSnapshot, triggerResponse?: boolean) => void
-  stopRecording: () => Promise<{ userAudio: Blob | null; aiAudio: Blob | null }>
+  stopRecording: () => Promise<StopRecordingResult>
   sendTimeAlert: (message: string) => void
 }
 
@@ -183,6 +198,25 @@ export interface UseMicCheckReturn {
   error: string | null
   requestMic: () => Promise<void>
   stopMicCheck: () => void
+}
+
+export interface UseCameraCheckReturn {
+  hasCameraPermission: boolean
+  cameraStreamRef: React.RefObject<MediaStream | null>
+  error: string | null
+  isRequesting: boolean
+  requestCamera: () => Promise<void>
+  stopCameraCheck: () => void
+}
+
+export interface UseScreenCheckReturn {
+  hasScreenPermission: boolean
+  screenStreamRef: React.RefObject<MediaStream | null>
+  error: string | null
+  isRequesting: boolean
+  isSupported: boolean
+  requestScreen: () => Promise<void>
+  stopScreenCheck: () => void
 }
 
 // ─── Re-exports for convenience ─────────────────────────

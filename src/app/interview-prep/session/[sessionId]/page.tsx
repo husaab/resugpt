@@ -10,15 +10,19 @@ import {
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { InterviewNavbar } from '@/components/interview-session/InterviewNavbar'
-import { MicCheckPanel } from '@/components/interview-session/MicCheckPanel'
+import { MediaCheckPanel } from '@/components/interview-session/MediaCheckPanel'
 import { TranscriptPanel } from '@/components/interview-session/TranscriptPanel'
 import { AudioControls } from '@/components/interview-session/AudioControls'
 import { RoundScoreCard } from '@/components/interview-session/RoundScoreCard'
 import { CodeEditorPanel, DEFAULT_CODE } from '@/components/interview-session/CodeEditorPanel'
 import { CodingInterviewLayout } from '@/components/interview-session/CodingInterviewLayout'
 import { TimePressureToast } from '@/components/interview-session/TimePressureToast'
+import { InterviewerOrb } from '@/components/interview-session/InterviewerOrb'
+import { CameraPreview } from '@/components/interview-session/CameraPreview'
 import type { TimePressureAlert, TimePressureAlertLevel } from '@/components/interview-session/TimePressureToast'
 import { useMicCheck } from '@/hooks/useMicCheck'
+import { useCameraCheck } from '@/hooks/useCameraCheck'
+import { useScreenCheck } from '@/hooks/useScreenCheck'
 import { useRealtimeInterview } from '@/hooks/useRealtimeInterview'
 import { useCodeObserver } from '@/hooks/useCodeObserver'
 import { useCodeExecution } from '@/hooks/useCodeExecution'
@@ -107,8 +111,18 @@ export default function LiveInterviewPage() {
     ? Math.floor(timePressure.roundDurationSeconds / questionCount)
     : null
 
+  // Camera & screen enabled toggles
+  const [cameraEnabled, setCameraEnabled] = useState(true)
+  const [screenEnabled, setScreenEnabled] = useState(true)
+
   // Mic check
   const mic = useMicCheck()
+
+  // Camera check
+  const camera = useCameraCheck()
+
+  // Screen check
+  const screenCheck = useScreenCheck()
 
   // Code execution (Piston API — for free-form coding rounds without structured problems)
   const codeExec = useCodeExecution()
@@ -356,14 +370,20 @@ export default function LiveInterviewPage() {
         setTimePressure(null)
       }
 
-      await realtime.connect(ephemeralToken)
+      // Pass camera/screen streams to the realtime hook for recording
+      const streams = {
+        camera: cameraEnabled ? camera.cameraStreamRef.current : null,
+        screen: screenEnabled ? screenCheck.screenStreamRef.current : null,
+      }
+
+      await realtime.connect(ephemeralToken, streams)
       // Phase transitions to 'active' via the connectionState effect below,
       // keeping the "Connecting..." spinner visible through ICE negotiation.
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to start interview')
       setPhase('error')
     }
-  }, [googleId, sessionId, mic, realtime])
+  }, [googleId, sessionId, mic, camera, screenCheck, cameraEnabled, screenEnabled, realtime])
 
   // ─── End round ──────────────────────────────────────
 
@@ -394,14 +414,15 @@ export default function LiveInterviewPage() {
         return
       }
 
-      // Upload audio recordings (non-critical, fire-and-forget)
-      if (audioBlobs.userAudio || audioBlobs.aiAudio) {
-        console.info('[Audio] Uploading audio — user:', audioBlobs.userAudio?.size, 'bytes, ai:', audioBlobs.aiAudio?.size, 'bytes')
-        uploadRoundAudio(sessionId, googleId, currentRoundNumber, audioBlobs.userAudio, audioBlobs.aiAudio)
-          .then((res) => console.info('[Audio] Upload result:', res))
-          .catch((err) => console.error('[Audio] Upload failed:', err))
+      // Upload audio/video recordings (non-critical, fire-and-forget)
+      if (audioBlobs.userAudio || audioBlobs.aiAudio || audioBlobs.cameraVideo || audioBlobs.screenVideo) {
+        console.info('[Media] Uploading — user audio:', audioBlobs.userAudio?.size, 'bytes, ai audio:', audioBlobs.aiAudio?.size,
+          'bytes, camera:', audioBlobs.cameraVideo?.size, 'bytes, screen:', audioBlobs.screenVideo?.size, 'bytes')
+        uploadRoundAudio(sessionId, googleId, currentRoundNumber, audioBlobs.userAudio, audioBlobs.aiAudio, audioBlobs.cameraVideo, audioBlobs.screenVideo)
+          .then((res) => console.info('[Media] Upload result:', res))
+          .catch((err) => console.error('[Media] Upload failed:', err))
       } else {
-        console.warn('[Audio] No audio blobs to upload')
+        console.warn('[Media] No media blobs to upload')
       }
 
       // Save code snapshots (non-critical, fire-and-forget)
@@ -630,15 +651,27 @@ export default function LiveInterviewPage() {
         </div>
       )}
 
-      {/* Mic check */}
+      {/* Media check (mic + camera + screen) */}
       {phase === 'mic-check' && (
         <div className="flex-1 flex items-center justify-center px-4">
-          <MicCheckPanel
+          <MediaCheckPanel
             hasMicPermission={mic.hasMicPermission}
             audioLevel={mic.audioLevel}
-            error={mic.error}
-            isConnecting={false}
+            micError={mic.error}
             onRequestMic={mic.requestMic}
+            hasCameraPermission={camera.hasCameraPermission}
+            cameraStreamRef={camera.cameraStreamRef}
+            cameraEnabled={cameraEnabled}
+            cameraError={camera.error}
+            onRequestCamera={camera.requestCamera}
+            onToggleCameraEnabled={() => setCameraEnabled((prev) => !prev)}
+            hasScreenPermission={screenCheck.hasScreenPermission}
+            screenEnabled={screenEnabled}
+            screenError={screenCheck.error}
+            isScreenSupported={screenCheck.isSupported}
+            onRequestScreen={screenCheck.requestScreen}
+            onToggleScreenEnabled={() => setScreenEnabled((prev) => !prev)}
+            isConnecting={false}
             onStartInterview={handleStartInterview}
           />
         </div>
@@ -834,11 +867,24 @@ export default function LiveInterviewPage() {
             />
           )}
 
+          {/* Interviewer orb + camera preview (floating, top-right corner) */}
+          <div className="absolute top-16 right-4 z-30 flex flex-col items-center gap-3 p-4 rounded-2xl bg-[var(--bg-elevated)]/80 backdrop-blur-md border border-[var(--border-color)] shadow-lg">
+            <InterviewerOrb currentSpeaker={realtime.currentSpeaker} size={120} />
+            <CameraPreview
+              cameraStreamRef={realtime.cameraStreamRef}
+              isCameraOff={realtime.isCameraOff}
+              onToggleCamera={realtime.toggleCamera}
+            />
+          </div>
+
           <AudioControls
             isMuted={realtime.isMuted}
             connectionState={realtime.connectionState}
             currentSpeaker={realtime.currentSpeaker}
             onToggleMute={realtime.toggleMute}
+            isCameraOff={realtime.isCameraOff}
+            hasCamera={!!realtime.cameraStreamRef.current}
+            onToggleCamera={realtime.toggleCamera}
           />
 
           {/* Time pressure notifications */}
